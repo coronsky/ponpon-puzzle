@@ -789,6 +789,15 @@ function spawnReady(){
 }
 // よわく引いたとき(10まで)は必ず一番右。そこから先はゆるやかに強くなる
 const MIN_PULL=4,speedOf=p=>VMIN+Math.pow(Math.max(0,p-10)/(MAXPULL-10),1.2)*(VMAX-VMIN);
+// バネの上の玉が、盤面にない絵になったとき: パリンと割れて、ちがう絵の玉が出てくる
+let shards=[];
+function swapShot(k){
+  const x=shot.x,y=shot.y,col=KINDS[shot.kind].bg;
+  popping.push({kind:shot.kind,x,y,pop:.001});
+  for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,v=60+Math.random()*140;shards.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-80,r:Math.random()*6.3,s:2+Math.random()*3.5,t:0,c:i%3?col:'#FFFFFF'});}
+  sfx.shatter();texts.push({x:x-6,y:y-BR-14,t:0,s:'パリン！',small:true});
+  shot.kind=k;shot.appear=-.15;
+}
 function launch(){
   if(readyT>0||!shot||shot.phase!=='ready')return;
   if(pull<MIN_PULL){pull=0;return;}
@@ -951,6 +960,7 @@ function findGroups(){
 function update(dt){
   time+=dt;shakeT=Math.max(0,shakeT-dt);grid.forEach(b=>{if(b.flash)b.flash=Math.max(0,b.flash-dt);});
   texts.forEach(t=>t.t+=dt);texts=texts.filter(t=>t.t<1.3);
+  shards.forEach(p=>{p.t+=dt;p.vy+=900*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=dt*8;});shards=shards.filter(p=>p.t<.7);if(shot&&shot.appear!=null){shot.appear+=dt;if(shot.appear>.5)shot.appear=null;}
   drops.forEach(d=>d.t+=dt);drops=drops.filter(d=>d.t<2.2);
   let moving=false;
   grid.forEach(b=>{const p=cellXY(b.r,b.i),f=Math.min(1,dt*16);b.x+=(p.x-b.x)*f;b.y+=(p.y-b.y)*f;if(Math.abs(p.y-b.y)>1.5||Math.abs(p.x-b.x)>1.5)moving=true;});
@@ -979,7 +989,7 @@ function update(dt){
   const busy=moving||settling||popping.length>0;
   // 待っている玉・つぎの玉が、もう盤面にない絵になったら入れかえる
   if(state==='play'&&!busy){const p=presentKinds();
-    if(p.length&&shot&&shot.phase==='ready'&&isPic(shot.kind)&&!p.includes(shot.kind)){shot.kind=p[Math.floor(Math.random()*p.length)];shot.flash=.3;}
+    if(p.length&&shot&&shot.phase==='ready'&&isPic(shot.kind)&&!p.includes(shot.kind)){swapShot(p[Math.floor(Math.random()*p.length)]);}
     if(p.length&&isPic(nextKind)&&!p.includes(nextKind)){nextKind=p[Math.floor(Math.random()*p.length)];drawNext();}}
   if(!busy)findGroups();
   plungerKick=Math.max(0,plungerKick-dt*900);
@@ -1096,6 +1106,7 @@ function txt(s,x,y,size,col,align){ctx.font=size+'px "Mochiy Pop One","M PLUS Ro
 function drawBall(b,px){
   let s=1,a=1;if(b.pop){s=1+b.pop*1.6;a=Math.max(0,1-b.pop/.3);}
   if(b.flash)s*=1+b.flash*.6;
+  if(b.appear!=null&&b.appear<.3)s*=Math.max(.05,b.appear/.3)*(1+.25*Math.sin(b.appear/.3*Math.PI));
   ctx.globalAlpha=a;ctx.drawImage(b.kind===CRATE&&b.hp===1?sprites.crate1:b.kind===CRATE&&b.hp>=3?sprites.crate3:sprites[b.kind],b.x-px*s/2,b.y-px*s/2,px*s,px*s);
   if(b.cham&&!b.pop){ctx.save();ctx.lineWidth=3;ctx.strokeStyle=`hsl(${(time*240)%360},95%,65%)`;ctx.setLineDash([5,4]);ctx.lineDashOffset=-time*30;ctx.beginPath();ctx.arc(b.x,b.y,BR-1.5,0,7);ctx.stroke();ctx.restore();}
   if(b.ice)ctx.drawImage(sprites.ice,b.x-px*s/2,b.y-px*s/2,px*s,px*s);
@@ -1179,6 +1190,7 @@ function render(){
     ctx.drawImage(T.img,x-sz/2,y-sz*ar/2,sz,sz*ar);ctx.restore();
     if(d.t<1.1){ctx.globalAlpha=Math.min(1,(1.1-d.t)*3);txt((d.isNew?'NEW! ':'')+'迷子札ゲット！',d.x,d.y-58,13,d.isNew?'#FF9FC0':'#FFE36E');
       txt(T.n+(T.r?'（'+RARE_NAME[T.r]+'）':''),d.x,d.y-40,10,'#FFFFFF');ctx.globalAlpha=1;}}
+  for(const p of shards){ctx.save();ctx.globalAlpha=Math.max(0,1-p.t/.7);ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.beginPath();ctx.moveTo(0,-p.s);ctx.lineTo(p.s*.8,p.s*.6);ctx.lineTo(-p.s*.7,p.s*.5);ctx.closePath();ctx.fill();ctx.restore();}
   for(const t of texts){ctx.globalAlpha=Math.max(0,1-t.t/1.3);const y=t.y-t.t*40;
     txt(t.s,t.x,y,t.small?13:18);if(t.chain)txt(t.chain,t.x,y-22,15,'#FF9FC0');ctx.globalAlpha=1;}
   if(state==='play'&&dangerT>0&&Math.sin(time*14)>-.4){txt('あぶない！ 消して！ '+Math.max(1,Math.ceil(3-dangerT)),(L+DIV)/2,DANGER-40,16,'#FF6B6B');}
@@ -1225,6 +1237,7 @@ const sfx={
     glass(t,.16);glass(t+.075,.07);},                                   // 着地「ぽこ」
   pop(c){const t=now(),b=1+.12*(c-1);[0,.05,.1].forEach((d,i)=>tone(660*b*[1,1.26,1.5][i],t+d,.12,'triangle',.3,1300*b));
     if(c>1)[0,.07,.14,.21].forEach((d,i)=>tone(880*b*[1,1.25,1.5,2][i],t+.12+d,.1,'square',.12));}, // 消える・連鎖
+  shatter(){const t=now();noise(t,.25,.45,2500);noise(t+.03,.18,.25,6000);[2600,3400,4200,5100].forEach((f,i)=>tone(f,t+i*.025,.18,'triangle',.07,f*.7));},
   crack(){const t=now();noise(t,.12,.35,3500);tone(1800,t,.06,'square',.08,900);},            // 氷「パリン」
   rise(){const t=now();tone(110,t,.5,'sawtooth',.18,70);noise(t,.4,.08,200);},              // せり上がり「ゴゴゴ」
   item(){const t=now();[0,1,2,3,4,5].forEach(i=>tone(523*Math.pow(2,i/5),t+i*.05,.25,'triangle',.22));noise(t+.25,.3,.12,5000);}, // まほう玉
