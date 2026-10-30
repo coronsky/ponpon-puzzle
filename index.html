@@ -410,7 +410,6 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
   </div>
   <div class="overlay" id="overOv" hidden>
     <div class="card">
-      <h2>おしまい！</h2>
       <div class="big" id="finalScore">0</div>
       <p id="overMsg">ベスト 0</p>
       <div class="btns">
@@ -992,7 +991,7 @@ function update(dt){
   let moving=false;
   grid.forEach(b=>{const p=cellXY(b.r,b.i),f=Math.min(1,dt*16);b.x+=(p.x-b.x)*f;b.y+=(p.y-b.y)*f;if(Math.abs(p.y-b.y)>1.5||Math.abs(p.x-b.x)>1.5)moving=true;});
   popping.forEach(b=>b.pop+=dt);popping=popping.filter(b=>b.pop<.3);
-  if(state==='dying'){dieT+=dt;if(dieT>2.2)showOver();return;}
+  if(state==='dying'){dieT+=dt;if(dieT>3.8)showOver();return;}
   if(state!=='play'&&state!=='clearing')return;
   if(readyT>0&&state==='play'){const before=readyT;readyT-=dt;
     if(readyT<=0){goT=.8;sfx.go();}return;}
@@ -1046,9 +1045,9 @@ function update(dt){
     if(!music.panic&&panicT>.4)music.setPanic(true);else if(music.panic&&rowsLeft>2.5)music.setPanic(false);}
   else if(music.panic&&state==='clearing')music.setPanic(false);
   // 点線をこえたら、すぐゲームオーバー(全モード共通)
-  // 線の真下で線にふれているだけの玉はセーフ。玉の真ん中が線より上に出たらアウト
+  // 線にかかっている玉や、線の上ギリギリに乗っている玉(下はしが線にふれる程度)はセーフ。玉がまるごと線より上に出たらアウト
   // 玉を置いた直後に消えたり転がったりしている最中は待ち、落ち着いた時点で判定する
-  if(state==='play'&&!busy&&!popping.length){const outs=[...grid.values()].filter(b=>cellXY(b.r,b.i).y<DANGER-.5);
+  if(state==='play'&&!busy&&!popping.length){const outs=[...grid.values()].filter(b=>cellXY(b.r,b.i).y+BR<DANGER-BR*.35);
     if(outs.length){outs.forEach(b=>b.die=true);dangerT=0;gameOver();return;}}
   // 線まで1段を切ったら線を赤く点滅させる(見た目だけ)
   {let top=1e9;grid.forEach(b=>{const y=cellXY(b.r,b.i).y-BR;if(y<top)top=y;});dangerT=state==='play'&&top-DANGER<ROW_H?1:0;}
@@ -1128,7 +1127,7 @@ function gameOver(){
 function showOver(){
   state='over';
   document.getElementById('finalScore').textContent=score;
-  document.getElementById('overMsg').textContent=MODE_NAME[mode]+' ステージ'+stageN+'まで ／ ベスト '+best;
+  {const el=document.getElementById('overMsg');el.textContent='';[MODE_NAME[mode]+' ',' ステージ'+stageN+'まで ／ ','ベスト '+best].forEach(t=>{const sp=document.createElement('span');sp.style.display='inline-block';sp.style.whiteSpace='pre';sp.textContent=t;el.appendChild(sp);});}
   document.getElementById('overOv').hidden=false;
 }
 
@@ -1228,12 +1227,14 @@ function render(){
   if(shot)drawBall(shot,px);
   if(state==='dying'||state==='over'){const a=Math.min(1,dieT/1.2);
     // 盤面がだんだん暗くなる
-    ctx.save();classicOrFrameClip();ctx.fillStyle='rgba(8,18,24,'+(a*.42)+')';ctx.fillRect(0,0,W,FLOOR);ctx.restore();
+    ctx.save();classicOrFrameClip();ctx.fillStyle='rgba(8,18,24,'+(a*.18)+')';ctx.fillRect(0,0,W,FLOOR);ctx.restore();
     // こえてしまった玉は赤く点滅
     grid.forEach(b=>{if(!b.die)return;const on=state==='over'||Math.sin(dieT*14)>-.2;if(!on)return;
       ctx.save();ctx.strokeStyle='#FF3A3A';ctx.lineWidth=3;ctx.shadowColor='#FF3A3A';ctx.shadowBlur=10;ctx.beginPath();ctx.arc(b.x,b.y,BR+2,0,7);ctx.stroke();ctx.restore();});
     // 「ざんねん…」がふわっと出る
-    const ta=Math.max(0,Math.min(1,(dieT-.5)/.6));if(ta>0){ctx.save();ctx.globalAlpha=ta;txt('ざんねん…',(L+DIV)/2,DANGER+70-ta*10,30,'#FFB3B3');ctx.restore();}}
+    // GAME OVER の文字(上のあいている所にポンと出る。玉の配置は見えたまま)
+    const ta=Math.max(0,Math.min(1,(dieT-.15)/.35));if(ta>0&&state==='dying'){const sc=ta<1?.6+.4*ta+Math.sin(ta*Math.PI)*.25:1;
+      ctx.save();ctx.globalAlpha=Math.min(1,ta*1.5);ctx.translate((L+DIV)/2,DANGER-78);ctx.scale(sc,sc);txt('GAME OVER',0,0,40,'#FF5A5A');ctx.restore();}}
   if(state!=='title'){
     if(mode==='puzzle'){const gy=goalY();ctx.save();ctx.lineCap='round';
       ctx.strokeStyle='rgba(40,20,0,.75)';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(L,gy);ctx.lineTo(DIV-DIVW,gy);ctx.stroke();
