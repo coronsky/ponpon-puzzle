@@ -298,7 +298,7 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
         <i>3</i><span>盤面に残っている絵の玉しか出てこないので、最後の1個まで消せる</span>
         <i>4</i><span>ときどき出る虹の「まほう玉」は同じ絵を全部消す(標準モードだけ)。「ボム」はまわりをまとめてこわす</span>
         <i>★</i><span>レベルが上がると、おやつ(砂時計が戻る)、木箱(2回当てるとこわれる)、カメレオン玉(1発ごとに絵が変わる)が出てくる</span>
-        <i>5</i><span>砂時計が落ちきると、標準・エキスパートは床が、パズルモードは玉が1段せり上がる。玉が点線にかかったらすぐおしまい。2ステージごとにレベルアップ</span>
+        <i>5</i><span>砂時計が落ちきると、標準・エキスパートは床が、パズルモードは玉が1段せり上がる。玉が点線をこえたらすぐおしまい(線の真下はセーフ)。2ステージごとにレベルアップ</span>
       </div>
       <button class="sub small-close" data-close="howOv" type="button">とじる</button>
     </div>
@@ -315,7 +315,7 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
           <li>強く引くほど左まで飛び、点線の高さから真下に落ちます。いちばん弱く引くと、いちばん右に落ちます。</li>
           <li>同じ絵の玉を3つ以上くっつけると消えます。すき間に上の玉が落ちて、またそろうと連鎖になります。</li>
           <li>盤面に残っている絵の玉しか出てこないので、最後の1個まで消せます。</li>
-          <li>玉が上の点線に少しでもかかったら、すぐゲームオーバーです。置いた玉がそのまま消えて、線より下におさまればセーフです。</li>
+          <li>玉が上の点線をこえたら、すぐゲームオーバーです。線の真下で線にふれているだけならセーフ。置いた玉がそのまま消えて、線より下におさまってもセーフです。</li>
           <li>「ガイド」ボタンで、玉の落ちる場所を点線で表示できます。</li>
           <li>「≡」ボタンで一時停止して、やり直しやタイトルにもどれます。</li>
         </ul>
@@ -992,6 +992,7 @@ function update(dt){
   let moving=false;
   grid.forEach(b=>{const p=cellXY(b.r,b.i),f=Math.min(1,dt*16);b.x+=(p.x-b.x)*f;b.y+=(p.y-b.y)*f;if(Math.abs(p.y-b.y)>1.5||Math.abs(p.x-b.x)>1.5)moving=true;});
   popping.forEach(b=>b.pop+=dt);popping=popping.filter(b=>b.pop<.3);
+  if(state==='dying'){dieT+=dt;if(dieT>2.2)showOver();return;}
   if(state!=='play'&&state!=='clearing')return;
   if(readyT>0&&state==='play'){const before=readyT;readyT-=dt;
     if(readyT<=0){goT=.8;sfx.go();}return;}
@@ -1044,9 +1045,11 @@ function update(dt){
     panicT=rowsLeft<1.5?panicT+dt:0;
     if(!music.panic&&panicT>.4)music.setPanic(true);else if(music.panic&&rowsLeft>2.5)music.setPanic(false);}
   else if(music.panic&&state==='clearing')music.setPanic(false);
-  // 点線にかかったら、すぐゲームオーバー(全モード共通)
-  // 玉を置いた直後に消えたり転がったりしている最中は待ち、落ち着いた時点で線にかかっている玉があればアウト
-  if(state==='play'&&!busy&&!popping.length&&[...grid.values()].some(b=>cellXY(b.r,b.i).y-BR<DANGER-.5)){dangerT=0;gameOver();return;}
+  // 点線をこえたら、すぐゲームオーバー(全モード共通)
+  // 線の真下で線にふれているだけの玉はセーフ。玉の真ん中が線より上に出たらアウト
+  // 玉を置いた直後に消えたり転がったりしている最中は待ち、落ち着いた時点で判定する
+  if(state==='play'&&!busy&&!popping.length){const outs=[...grid.values()].filter(b=>cellXY(b.r,b.i).y<DANGER-.5);
+    if(outs.length){outs.forEach(b=>b.die=true);dangerT=0;gameOver();return;}}
   // 線まで1段を切ったら線を赤く点滅させる(見た目だけ)
   {let top=1e9;grid.forEach(b=>{const y=cellXY(b.r,b.i).y-BR;if(y<top)top=y;});dangerT=state==='play'&&top-DANGER<ROW_H?1:0;}
 }
@@ -1117,8 +1120,13 @@ function startConfetti(){
     requestAnimationFrame(f);})(last);
 }
 function saveBest(){if(score>best){best=score;try{localStorage.setItem(bestKey(),best)}catch(e){}}}
+let dieT=0;
 function gameOver(){
-  state='over';bgm.stop();sfx.over();saveBest();setTimeout(()=>voice('over',VOICE.over),1800);
+  // まず「やられた」演出(画面がゆれて、こえた玉が赤く光り、盤面がしずむ)。2秒ほど見せてから結果を出す
+  state='dying';dieT=0;dragging=false;pull=0;ghost=null;shakeT=.45;bgm.stop();sfx.over();saveBest();setTimeout(()=>voice('over',VOICE.over),700);
+}
+function showOver(){
+  state='over';
   document.getElementById('finalScore').textContent=score;
   document.getElementById('overMsg').textContent=MODE_NAME[mode]+' ステージ'+stageN+'まで ／ ベスト '+best;
   document.getElementById('overOv').hidden=false;
@@ -1171,6 +1179,7 @@ function drawClassicPlunger(top){
   ctx.lineTo(LANE_X,FLOOR);ctx.stroke();
   ctx.fillStyle='#FF7FA8';ctx.fillRect(LANE_X-BR*.9,top,BR*1.8,7);ctx.restore();
 }
+function classicOrFrameClip(){classicPath(ctx);ctx.clip();ctx.beginPath();ctx.rect(L,0,DIV-DIVW-L,FLOOR);ctx.clip();}
 function render(){
   const k=scale*dpr,sx=shakeT>0?(Math.random()-.5)*shakeT*24:0,sy=shakeT>0?(Math.random()-.5)*shakeT*24:0;ctx.setTransform(k,0,0,k,sx*k,sy*k);
   ctx.fillStyle='#0A1F29';ctx.fillRect(0,0,W,H);
@@ -1182,7 +1191,7 @@ function render(){
     ctx.restore();ctx.fillStyle='#E9B44C';ctx.fillRect(L,fy-2,FR-L,3);}
   // 点線(ここから真下に落ちる)
   ctx.save();ctx.setLineDash([6,6]);ctx.lineWidth=2;
-  ctx.strokeStyle=dangerT>0&&Math.sin(time*20)>0?'#FF3A3A':'rgba(255,255,255,.75)';ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=3;
+  ctx.strokeStyle=(state==='dying'||state==='over')||(dangerT>0&&Math.sin(time*20)>0)?'#FF3A3A':'rgba(255,255,255,.75)';ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=3;
   ctx.beginPath();ctx.moveTo(L,DANGER);ctx.lineTo(FR,DANGER);ctx.stroke();ctx.restore();
   // バネ(発射レーン)
   const ready=shot&&shot.phase==='ready';
@@ -1217,6 +1226,14 @@ function render(){
     incoming.forEach((k,i)=>{const p=cellXY(-1,i);ctx.drawImage(sprites[k],p.x-px/2,p.y-px/2,px,px);});ctx.restore();}
   grid.forEach(b=>drawBall(b,px));popping.forEach(b=>drawBall(b,px));
   if(shot)drawBall(shot,px);
+  if(state==='dying'||state==='over'){const a=Math.min(1,dieT/1.2);
+    // 盤面がだんだん暗くなる
+    ctx.save();classicOrFrameClip();ctx.fillStyle='rgba(8,18,24,'+(a*.42)+')';ctx.fillRect(0,0,W,FLOOR);ctx.restore();
+    // こえてしまった玉は赤く点滅
+    grid.forEach(b=>{if(!b.die)return;const on=state==='over'||Math.sin(dieT*14)>-.2;if(!on)return;
+      ctx.save();ctx.strokeStyle='#FF3A3A';ctx.lineWidth=3;ctx.shadowColor='#FF3A3A';ctx.shadowBlur=10;ctx.beginPath();ctx.arc(b.x,b.y,BR+2,0,7);ctx.stroke();ctx.restore();});
+    // 「ざんねん…」がふわっと出る
+    const ta=Math.max(0,Math.min(1,(dieT-.5)/.6));if(ta>0){ctx.save();ctx.globalAlpha=ta;txt('ざんねん…',(L+DIV)/2,DANGER+70-ta*10,30,'#FFB3B3');ctx.restore();}}
   if(state!=='title'){
     if(mode==='puzzle'){const gy=goalY();ctx.save();ctx.lineCap='round';
       ctx.strokeStyle='rgba(40,20,0,.75)';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(L,gy);ctx.lineTo(DIV-DIVW,gy);ctx.stroke();
