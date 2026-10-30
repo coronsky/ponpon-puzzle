@@ -1357,8 +1357,19 @@ const $snd=document.getElementById('sndBtn');
 $snd.setAttribute('aria-pressed',soundOn?'true':'false');
 $snd.onclick=()=>{audioInit();soundOn=!soundOn;$snd.setAttribute('aria-pressed',soundOn?'true':'false');
   if(master)master.gain.value=soundOn?1:0;try{localStorage.setItem('mcPonPonSound',soundOn?'on':'off')}catch(e){}
-  if(soundOn&&state==='play')bgm.start();};
-document.addEventListener('visibilitychange',()=>{if(!AC)return;if(document.hidden)AC.suspend();else AC.resume();});
+  if(soundOn)fixAudio(true);};
+// 音がとぎれたときに直す(ほかのアプリから戻ったとき・電話のあとなど、iPhoneは音が止まったままになることがある)
+function fixAudio(force){
+  if(!AC||!soundOn)return;
+  if(AC.state!=='running'){try{AC.resume();}catch(e){}}
+  if(master)master.gain.value=1;
+  const playing=state==='play'||state==='paused'||state==='clearing';
+  if(!playing)return;
+  if(force||!bgm.on||(!music.src&&!synthBgm.on)){bgm.stop();bgm.on=false;music.cur=-1;bgm.start();}
+}
+document.addEventListener('visibilitychange',()=>{if(!AC)return;if(document.hidden){try{AC.suspend();}catch(e){}}else{try{AC.resume();}catch(e){}}});
+// 画面にさわったら、止まっていた音を再開(iPhoneは、さわったときでないと音を再開できない)
+['pointerdown','touchend','keydown'].forEach(ev=>document.addEventListener(ev,()=>{if(AC&&soundOn&&(AC.state!=='running'))fixAudio(false);},{passive:true}));
 
 /* ---------- テーマ切りかえ ---------- */
 function applyTheme(i){
@@ -1422,7 +1433,7 @@ function openSelect(){
 document.getElementById('selectBack').onclick=()=>{hide('selectOv');document.getElementById('startOv').hidden=false;};
 document.querySelectorAll('button.mode').forEach(btn=>btn.onclick=()=>{if(btn.dataset.mode==='puzzle'){openSelect();return;}hide('startOv');beginGame(btn.dataset.mode,1);});
 document.getElementById('menuTopBtn').onclick=()=>{if(state!=='play'&&state!=='clearing')return;menuPrev=state;state='paused';dragging=false;pull=0;document.getElementById('pauseOv').hidden=false;};
-document.getElementById('resumeBtn').onclick=()=>{hide('pauseOv');state=menuPrev||'play';};
+document.getElementById('resumeBtn').onclick=()=>{hide('pauseOv');state=menuPrev||'play';audioInit();fixAudio(false);};
 document.getElementById('redoBtn').onclick=()=>{hide('pauseOv');score=stageStartScore;$score.textContent=score;loadStage(stageN);};
 document.getElementById('titleBtn').onclick=()=>{hide('pauseOv');saveBest();state='title';shot=null;ghost=null;document.getElementById('startOv').hidden=false;};
 document.getElementById('howBtn').onclick=()=>{hide('startOv');document.getElementById('howOv').hidden=false;document.querySelector('#howOv .card').scrollTop=0;};
