@@ -840,7 +840,8 @@ function predict(p){
 }
 function landShot(){
   // ガイドと同じ計算で、ころがった先の止まるマスまで決めてから置く(ガイドの丸と同じ所に入る)
-  let c=nearestEmpty(gridHas,shot.x,shot.y);for(let k=0;k<40&&!supported(gridHas,c[0],c[1]);k++)c=rollTo(gridHas,c[0],c[1]);
+  // まず当たった所に置き、そこから1マスずつ転がって止まる(ガイドの丸は止まる所)。玉がほかの玉をすりぬけて見えないように
+  const c=nearestEmpty(gridHas,shot.x,shot.y);
   combo=0;chainDropped=false;
   if(shot.kind===ITEM||shot.kind===BOMB){(shot.kind===ITEM?useItem:useBomb)(c,shot);shot=null;settling=true;spawnReady();return;}
   grid.set(key(c[0],c[1]),{kind:shot.kind,ice:false,cham:false,hp:0,target:false,r:c[0],i:c[1],x:shot.x,y:shot.y});
@@ -974,7 +975,7 @@ function update(dt){
     }
   }
   // 支えのない玉は転がり落ちる
-  settleT+=dt;if(settleT>.05){settleT=0;settling=settlePass();}
+  settleT+=dt;if(settleT>.07){settleT=0;settling=settlePass();}
   const busy=moving||settling||popping.length>0;
   // 待っている玉・つぎの玉が、もう盤面にない絵になったら入れかえる
   if(state==='play'&&!busy){const p=presentKinds();
