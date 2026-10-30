@@ -43,7 +43,7 @@ body{
   padding-left:max(16px,env(safe-area-inset-left,0px));
   padding-right:max(16px,env(safe-area-inset-right,0px));
   padding-block:8px;overflow:hidden;
-  position:fixed;inset:0;width:100%;overscroll-behavior:none;touch-action:none;
+  position:fixed;top:0;left:0;right:0;bottom:0;inset:0;width:100%;overscroll-behavior:none;touch-action:none;
   /* iPhoneのノッチ・ホームバーや、ブラウザのアドレスバーに隠れないように */
   height:auto;padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:max(8px,env(safe-area-inset-bottom,0px));
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
@@ -584,18 +584,27 @@ function drawNext(){nctx.clearRect(0,0,56,56);nctx.save();nctx.translate(28,28);
 
 /* ---------- レイアウト ---------- */
 function resize(){
-  const r=stage.getBoundingClientRect();
+  const r=stage.getBoundingClientRect();if(r.width<10||r.height<10)return;
   scale=Math.min(r.width/W,r.height/H);dpr=Math.min(window.devicePixelRatio||1,3);
   cv.style.width=W*scale+'px';cv.style.height=H*scale+'px';
   cv.width=Math.round(W*scale*dpr);cv.height=Math.round(H*scale*dpr);
   buildSprites();
 }
-window.addEventListener('resize',resize);
-// アドレスバーが出たり引っこんだりしても、画面にぴったり合わせ直す
-if(window.visualViewport)visualViewport.addEventListener('resize',resize);
-window.addEventListener('orientationchange',()=>setTimeout(resize,300));
+// Safari・Chromeのアドレスバーやツールバーを除いた「いま見えている広さ」に、画面全体をぴったり合わせる
+function fitApp(){
+  const vv=window.visualViewport,h=Math.round(vv?vv.height:window.innerHeight),top=Math.round(vv?vv.offsetTop:0);
+  const b=document.body.style;b.position='fixed';b.left='0';b.right='0';b.top=top+'px';b.bottom='auto';b.height=h+'px';
+  resize();
+}
+let fitTimer=0;const fitSoon=()=>{fitApp();clearTimeout(fitTimer);fitTimer=setTimeout(fitApp,350);};
+window.addEventListener('resize',fitSoon);
+if(window.visualViewport){visualViewport.addEventListener('resize',fitSoon);visualViewport.addEventListener('scroll',fitSoon);}
+window.addEventListener('orientationchange',()=>setTimeout(fitApp,400));
+window.addEventListener('pageshow',fitSoon);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)fitSoon();});
 if(window.ResizeObserver)new ResizeObserver(()=>resize()).observe(stage);
-if(document.fonts&&document.fonts.ready)document.fonts.ready.then(resize);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitApp);
+window.scrollTo(0,0);setTimeout(fitApp,0);setTimeout(fitApp,600);
 
 /* ---------- マス目(下の玉は固定) ---------- */
 const key=(r,i)=>r*COLS+i;
