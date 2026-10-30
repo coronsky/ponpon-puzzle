@@ -181,6 +181,8 @@ button.danger{background:#E5484D;color:#fff;font-size:14px;padding:9px 18px}
 .share-btn{font-size:14px!important;padding:8px 18px!important}
 .share-done{font-size:12px;font-weight:800;color:#7FE0A8;word-break:break-all}
 .card.about{text-align:left;max-width:360px;gap:14px}
+.overlay .card{touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.top-close{position:sticky!important;top:-4px;align-self:flex-end;z-index:3;font-family:var(--f-body);font-weight:800;font-size:12px;padding:6px 12px;border-radius:999px;background:rgba(10,31,41,.92);color:var(--ink);border:1.5px solid var(--muted);margin:-8px -6px -6px 0}
 .about-lead{text-align:center;font-family:var(--f-display);color:var(--rail)!important;font-size:14px!important;margin:-6px 0 0!important}
 .card.about section{border-top:1px dashed rgba(255,255,255,.15);padding-top:10px}
 .card.about dl{margin:0;display:flex;flex-direction:column;gap:6px}
@@ -298,8 +300,9 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
   </div>
   <div class="overlay" id="aboutOv" hidden>
     <div class="card about">
+      <button class="top-close" data-close-about type="button">とじる ×</button>
       <h2>このゲームについて</h2>
-      <p class="about-lead">コロンとムーンの<br>ポンポンパズル</p>
+      <p class="about-lead">コロン&amp;ムーンのポンポンパズル</p>
 
       <section><h3>あそびかた</h3>
         <ul>
@@ -1354,7 +1357,9 @@ function calibrate(){
 }
 /* ---------- 操作 ---------- */
 // 引っぱっても画面が動かないように(スマホの引っぱって更新・バウンドを止める)
-['touchmove','gesturestart'].forEach(ev=>document.addEventListener(ev,e=>{if(e.cancelable)e.preventDefault();},{passive:false}));
+// 画面が動かないように止める。ただしカード(説明・図鑑など)の中は指でスクロールできるようにする
+document.addEventListener('gesturestart',e=>{if(e.cancelable)e.preventDefault();},{passive:false});
+document.addEventListener('touchmove',e=>{const c=e.target.closest&&e.target.closest('.overlay .card');if(c&&c.scrollHeight>c.clientHeight+1)return;if(e.cancelable)e.preventDefault();},{passive:false});
 cv.addEventListener('touchstart',e=>{if(e.cancelable)e.preventDefault();},{passive:false});
 document.addEventListener('dblclick',e=>e.preventDefault());
 cv.addEventListener('pointerdown',e=>{
@@ -1398,6 +1403,7 @@ document.querySelectorAll('.xbtn,[data-close="howOv"]').forEach(b=>b.onclick=()=
   if(id==='zukanOv'){document.getElementById('zukanClose').click();return;}
   if(id==='aboutOv'){document.getElementById('aboutClose').click();return;}
   hide(id);document.getElementById('startOv').hidden=false;});
+document.querySelectorAll('[data-close-about]').forEach(b=>b.onclick=()=>document.getElementById('aboutClose').click());
 let zukanFrom=null;
 function renderZukan(sel){
   const o=loadTags(),grid=document.getElementById('zkGrid');grid.innerHTML='';let have=0;
