@@ -467,7 +467,8 @@ function stageDef(n){
   const base={lv,rows,colors:cols,goalRow:4,push:Math.max(9,17-lv),quota:25+lv*6,kinds:[0,1,...others.slice(0,cols-2)],
     treats:lv>=1?(lv>=3?2:1):0,crates:lv>=2?Math.min(6,2+(lv-2)):0,cham:lv>=3?Math.min(3,1+Math.floor((lv-3)/2)):0,
     ice:lv>=4?Math.min(.3,.12+.04*(lv-4)):0,stones:lv>=4?Math.min(5,2+(lv-4)):0,
-    sand:Math.max(10,22-lv*2),
+    // 標準モード: 1面目24秒 → 30面目12秒。面の中でも1段上がるごとに12%ずつ速くなる(下限あり)
+    sand:mode==='normal'?24-(Math.min(n,30)-1)*12/29:Math.max(10,22-lv*2),sandMin:mode==='normal'?Math.max(4,(24-(Math.min(n,30)-1)*12/29)*.4):0,
     title:first?(lv===0?'まずは3しゅるい':'レベル'+(lv+1)+'！ '+(LEVEL_NOTE[lv]||'もっと速く')):'レベル'+(lv+1)};
   // エキスパート: おじゃま(石・木箱・3回で割れる鉄の箱・氷)を最初から多めに
   if(ex)Object.assign(base,{stones:Math.min(8,3+lv),crates:Math.min(10,4+lv),iron:Math.min(6,1+lv),treats:lv>=1?2:1,
@@ -532,7 +533,7 @@ function say(text){
   if(!soundOn||!text)return;
   try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='ja-JP';if(jaVoice)u.voice=jaVoice;u.rate=1.08;u.pitch=1.45;u.volume=1;speechSynthesis.speak(u);}catch(e){}
 }
-let readyT=0,goT=0,panicT=0,mode='normal',par=0,cleared=0,riseOff=0,risePause=0,incoming=null,menuPrev=null;
+let curSand=20,readyT=0,goT=0,panicT=0,mode='normal',par=0,cleared=0,riseOff=0,risePause=0,incoming=null,menuPrev=null;
 let grid=new Map(),popping=[],shot=null,nextKind=0,score=0,stageStartScore=0,best=0,state='title',stageN=1,def=stageDef(1);
 let pull=0,dragging=false,startY=0,plungerKick=0,combo=0,time=0,dangerT=0,texts=[],keyCharge=false;
 let rise=0,sandT=0,stageT=0,bannerT=0,clearT=0,guideMode=null,ghost=null,ghostPull=-1,settleT=0,settling=false;
@@ -772,7 +773,7 @@ function fillGrid(g,targets){
 }
 function loadStage(n){
   readyT=9;goT=0;{let tries=0;const go=()=>{const ok=VCLIPS.start.every(k=>vbuf[k]&&vbuf[k]!=='loading')||VCLIPS.start.some(k=>vbuf[k]===null);if(!ok&&tries++<15){setTimeout(go,100);return;}sfx.ready();const c=voice('start',mode==='normal'&&n===30?VOICE.last:pick(VOICE.start));readyT=c?Math.max(.6,GO_AT[c]||1):1.6;};setTimeout(go,150);}bgm.next();stageN=n;par=0;cleared=0;riseOff=0;risePause=0;incoming=null;def=stageDef(n);$stageNo.textContent=n;applyTheme(def.theme!=null?def.theme:def.lv%THEMES.length);
-  popping=[];texts=[];combo=0;dangerT=0;pull=0;dragging=false;rise=0;sandT=mode==='puzzle'?def.push:def.sand;stageT=0;bannerT=0;clearT=0;ghost=null;ghostPull=-1;settling=false;
+  popping=[];texts=[];combo=0;dangerT=0;pull=0;dragging=false;rise=0;curSand=def.sand;sandT=mode==='puzzle'?def.push:def.sand;stageT=0;bannerT=0;clearT=0;ghost=null;ghostPull=-1;settling=false;
   fillGrid(makeGrid(def,mode==='expert'?Math.floor(Math.random()*1e9):n*7919+13),true);/* 標準・パズルはステージごとに固定、エキスパートは毎回ランダム */
   stageStartScore=score;updateGuideBtn();shots=0;lastItemShot=0;
   shot=null;nextKind=pickKind();spawnReady();state='play';
@@ -861,7 +862,7 @@ function useItem(c,s){
 }
 function removeBall(b){if(!grid.has(key(b.r,b.i)))return;if(isPic(b.kind))cleared++;grid.delete(key(b.r,b.i));b.pop=.001;popping.push(b);}
 function hitCrate(b){b.hp--;sfx.thud();if(b.hp<=0){removeBall(b);texts.push({x:b.x,y:b.y-10,t:0,s:'バキッ！',small:true});score+=20;$score.textContent=score;}else texts.push({x:b.x,y:b.y-10,t:0,s:'ゴン',small:true});}
-function eatTreat(b){removeBall(b);if(mode==='puzzle')risePause=6;else sandT=def.sand;score+=50;$score.textContent=score;sfx.treat();texts.push({x:b.x,y:b.y,t:0,s:'+50',chain:mode==='puzzle'?'おやつ！せり上がりストップ':'おやつ！砂時計もどる'});}
+function eatTreat(b){removeBall(b);if(mode==='puzzle')risePause=6;else sandT=mode==='normal'?curSand:def.sand;score+=50;$score.textContent=score;sfx.treat();texts.push({x:b.x,y:b.y,t:0,s:'+50',chain:mode==='puzzle'?'おやつ！せり上がりストップ':'おやつ！砂時計もどる'});}
 // ボム: 落ちた所のまわり2マスくらいを全部こわす(石・木箱も)
 function useBomb(c,s){
   const p=cellXY(c[0],c[1]);let n=0;
@@ -994,7 +995,7 @@ function update(dt){
   // 砂時計 → 床がせり上がる(標準・エキスパート)
   else sandT-=dt;
   if(mode!=='puzzle'&&sandT<=0){
-    {sandT=def.sand;rise++;grid.forEach(b=>b.y-=RISE);sfx.rise();texts.push({x:158,y:floorY()-40,t:0,s:'せりあがり！',small:true});}}
+    {if(mode==='normal')curSand=Math.max(def.sandMin,curSand*.88);sandT=mode==='normal'?curSand:def.sand;rise++;grid.forEach(b=>b.y-=RISE);sfx.rise();texts.push({x:158,y:floorY()-40,t:0,s:'せりあがり！',small:true});}}
   if(!busy&&(mode==='puzzle'?aboveGoal()===0&&stageT>1:(mode==='expert'&&cleared>=def.quota)||![...grid.values()].some(b=>isPic(b.kind)))){state='clearing';clearT=0;if(shot&&shot.phase==='ready')shot=null;
     // 残った石・木箱・おやつはおまけでこわれる(パズルモードは残りをボーナスに)
     let n=0;if(mode==='normal')[...grid.values()].forEach(b=>{removeBall(b);n++;});if(n){score+=n*10;$score.textContent=score;sfx.item();texts.push({x:(L+DIV)/2,y:FLOOR-80,t:0,s:'+'+n*10,chain:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
@@ -1134,7 +1135,7 @@ function render(){
   // 下の帯: 砂時計とパワー
   const band=ctx.createLinearGradient(0,FLOOR,0,H);band.addColorStop(0,'rgba(10,31,41,0)');band.addColorStop(.35,'rgba(10,31,41,.75)');band.addColorStop(1,'rgba(10,31,41,.9)');
   ctx.fillStyle=band;ctx.fillRect(0,FLOOR,W,H-FLOOR);
-  const sf=state==='title'?1:mode==='puzzle'?1-riseOff/ROW_H:Math.max(0,sandT/def.sand);
+  const sf=state==='title'?1:mode==='puzzle'?1-riseOff/ROW_H:Math.max(0,sandT/(mode==='normal'?curSand:def.sand));
   if(mode!=='puzzle'||state==='title'){ // 砂時計(パズルモードは出さない)
   ctx.save();ctx.translate(22,627);ctx.fillStyle='#E9B44C';
   ctx.beginPath();ctx.moveTo(-6,-9);ctx.lineTo(6,-9);ctx.lineTo(0,0);ctx.lineTo(6,9);ctx.lineTo(-6,9);ctx.lineTo(0,0);ctx.closePath();ctx.globalAlpha=.35;ctx.fill();ctx.globalAlpha=1;
