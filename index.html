@@ -83,6 +83,14 @@ body{
 #startOv button.mode{padding:8px 14px}
 #startOv button.mode b{font-size:16px}
 #startOv button.mode span{font-size:11px}
+.card>*{flex-shrink:0}
+.card{position:relative}
+.xbtn{position:sticky!important;top:0;align-self:flex-end;margin:-8px -6px -30px 0;z-index:2;width:32px;height:32px;padding:0;border-radius:50%;
+  font-family:var(--f-body);font-size:20px;line-height:1;background:rgba(10,31,41,.9);color:var(--ink);border:1.5px solid var(--muted)}
+.small-close{align-self:center;font-size:13px!important;padding:7px 22px!important}
+.linkbtn{background:none;border:0;color:var(--muted);font-family:var(--f-body);font-size:12px;padding:4px;cursor:pointer}
+.how-card{max-width:340px;text-align:left}
+.how-card h2{text-align:center}
 .title-sub{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 .title-sub button{font-size:13px;padding:8px 10px;flex:1 1 0;min-width:0;white-space:nowrap}
 .modes{display:flex;flex-direction:column;gap:8px}
@@ -209,15 +217,7 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
         <button class="mode" data-mode="expert" type="button"><b>エキスパートモード</b><span>最初から玉とおじゃまがたくさん。ノルマの数だけ消したらクリア</span></button>
         <button class="mode" data-mode="puzzle" type="button"><b>パズルモード</b><span>下から玉がせり上がってくる。ゴールラインより下まで減らしたらクリア</span></button>
       </div>
-      <details class="rules"><summary>あそびかた</summary>
-      <div class="how">
-        <i>1</i><span>画面を下に引っぱって、はなすと玉が飛ぶよ。強く引くほど左まで飛んで、点線から真下に落ちる</span>
-        <i>2</i><span>同じ絵を3つ以上くっつけると消える。すき間に上の玉が落ちてまたそろうと連鎖</span>
-        <i>3</i><span>盤面に残っている絵の玉しか出てこないので、最後の1個まで消せる</span>
-        <i>4</i><span>ときどき出る虹の「まほう玉」は同じ絵を全部消す(標準モードだけ)。「ボム」はまわりをまとめてこわす</span>
-        <i>★</i><span>レベルが上がると、おやつ(砂時計が戻る)、木箱(2回当てるとこわれる)、カメレオン玉(1発ごとに絵が変わる)が出てくる</span>
-        <i>5</i><span>砂時計が落ちきると、標準・エキスパートは床が、パズルモードは玉が1段せり上がる。点線より上まで積もったらおしまい。2ステージごとにレベルアップ</span>
-      </div></details>
+      <button id="howBtn" class="linkbtn" type="button">▶ あそびかた</button>
       <div class="title-sub"><button id="zukanBtn" class="sub" type="button">迷子札図鑑</button><button id="aboutBtn" class="sub" type="button">ゲームについて</button></div>
     </div>
   </div>
@@ -257,13 +257,14 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
   </div>
   <div class="overlay" id="zukanOv" hidden>
     <div class="card zukan">
+      <button class="xbtn" data-close="zukanOv" type="button" aria-label="とじる">×</button>
       <div class="zk-crown" aria-hidden="true">COMPLETE</div>
       <h2 id="zkTitle">迷子札図鑑</h2>
       <div class="zk-prog"><span id="zkCount">0 / 20 あつめた</span><div class="zk-bar"><i id="zkBar"></i></div></div>
       <div class="zk-grid" id="zkGrid"></div>
       <div class="zk-detail" id="zkDetail" hidden><img id="zkImg" alt=""><div><b id="zkName"></b><span id="zkRare" class="zk-pill"></span><p id="zkDesc"></p><p id="zkMeta" class="zk-meta"></p></div></div>
       <p class="zk-hint">2連鎖以上や、5個以上いっぺんに消すと、ときどき迷子札が出てくるよ。レア・超レアは、ノーマルを全部集めたあたりから出はじめる…かも！</p>
-      <button id="zukanClose" type="button">とじる</button>
+      <button id="zukanClose" class="sub small-close" type="button">とじる</button>
       <div class="zk-reset">
         <button id="zkResetBtn" class="sub" type="button">図鑑をリセット</button>
         <div id="zkResetBox" class="zk-reset-box" hidden>
@@ -274,8 +275,24 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
       </div>
     </div>
   </div>
+  <div class="overlay" id="howOv" hidden>
+    <div class="card how-card">
+      <button class="xbtn" data-close="howOv" type="button" aria-label="とじる">×</button>
+      <h2>あそびかた</h2>
+      <div class="how">
+        <i>1</i><span>画面を下に引っぱって、はなすと玉が飛ぶよ。強く引くほど左まで飛んで、点線から真下に落ちる</span>
+        <i>2</i><span>同じ絵を3つ以上くっつけると消える。すき間に上の玉が落ちてまたそろうと連鎖</span>
+        <i>3</i><span>盤面に残っている絵の玉しか出てこないので、最後の1個まで消せる</span>
+        <i>4</i><span>ときどき出る虹の「まほう玉」は同じ絵を全部消す(標準モードだけ)。「ボム」はまわりをまとめてこわす</span>
+        <i>★</i><span>レベルが上がると、おやつ(砂時計が戻る)、木箱(2回当てるとこわれる)、カメレオン玉(1発ごとに絵が変わる)が出てくる</span>
+        <i>5</i><span>砂時計が落ちきると、標準・エキスパートは床が、パズルモードは玉が1段せり上がる。点線より上まで積もったらおしまい。2ステージごとにレベルアップ</span>
+      </div>
+      <button class="sub small-close" data-close="howOv" type="button">とじる</button>
+    </div>
+  </div>
   <div class="overlay" id="aboutOv" hidden>
     <div class="card about">
+      <button class="xbtn" data-close="aboutOv" type="button" aria-label="とじる">×</button>
       <h2>このゲームについて</h2>
       <section><h3>あそびかた</h3>
         <p>画面を下に引っぱって、はなすと玉が飛びます。強く引くほど左まで飛び、点線の高さから真下に落ちます。同じ絵を3つ以上くっつけると消えます。玉が点線より上まで積もるとゲームオーバーです。</p>
@@ -307,7 +324,7 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
         </ul>
       </section>
       <p class="copy">© 2026 MonChien</p>
-      <button id="aboutClose" type="button">とじる</button>
+      <button id="aboutClose" class="sub small-close" type="button">とじる</button>
     </div>
   </div>
   <div class="overlay" id="pauseOv" hidden>
@@ -1315,6 +1332,11 @@ document.getElementById('menuTopBtn').onclick=()=>{if(state!=='play'&&state!=='c
 document.getElementById('resumeBtn').onclick=()=>{hide('pauseOv');state=menuPrev||'play';};
 document.getElementById('redoBtn').onclick=()=>{hide('pauseOv');score=stageStartScore;$score.textContent=score;loadStage(stageN);};
 document.getElementById('titleBtn').onclick=()=>{hide('pauseOv');saveBest();state='title';shot=null;ghost=null;document.getElementById('startOv').hidden=false;};
+document.getElementById('howBtn').onclick=()=>{hide('startOv');document.getElementById('howOv').hidden=false;document.querySelector('#howOv .card').scrollTop=0;};
+document.querySelectorAll('.xbtn,[data-close="howOv"]').forEach(b=>b.onclick=()=>{const id=b.dataset.close;
+  if(id==='zukanOv'){document.getElementById('zukanClose').click();return;}
+  if(id==='aboutOv'){document.getElementById('aboutClose').click();return;}
+  hide(id);document.getElementById('startOv').hidden=false;});
 let zukanFrom=null;
 function renderZukan(sel){
   const o=loadTags(),grid=document.getElementById('zkGrid');grid.innerHTML='';let have=0;
