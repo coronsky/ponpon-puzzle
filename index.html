@@ -140,10 +140,45 @@ const guideOn=()=>guideMode===null?stageN<=2:guideMode;
 let shots=0,lastItemShot=0;
 
 /* ---------- 絵柄(仮) ---------- */
+// 色を明るく(+)・暗く(-)する
+function shade(hex,amt){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;
+  const t=amt<0?0:255,p=Math.abs(amt);r=Math.round(r+(t-r)*p);g=Math.round(g+(t-g)*p);b=Math.round(b+(t-b)*p);return`rgb(${r},${g},${b})`;}
+// 立体的なガラス玉: 下地の球 → 絵柄 → 陰影 → 照り返し → ハイライト
 function drawKind(c,k,r){
   c.save();
-  c.beginPath();c.arc(0,0,r,0,Math.PI*2);c.fillStyle=KINDS[k].bg;c.fill();
-  c.lineWidth=r*.1;c.strokeStyle='rgba(0,0,0,.28)';c.stroke();
+  c.beginPath();c.arc(0,0,r,0,Math.PI*2);c.clip();
+  const bg=KINDS[k].bg,base=c.createRadialGradient(-r*.35,-r*.4,r*.05,0,0,r);
+  base.addColorStop(0,shade(bg,.45));base.addColorStop(.55,bg);base.addColorStop(1,shade(bg,-.45));
+  c.fillStyle=base;c.fillRect(-r,-r,r*2,r*2);
+  c.save();
+  const img=KINDS[k].img;
+  if(img&&img.complete&&img.naturalWidth){ // 写真の玉(写真を渡されたらここで使う)
+    const sz=Math.min(img.naturalWidth,img.naturalHeight);
+    c.drawImage(img,(img.naturalWidth-sz)/2,(img.naturalHeight-sz)/2,sz,sz,-r,-r,r*2,r*2);
+  }else drawIcon(c,k,r);
+  c.restore();
+  // 球の陰(ふちほど暗く)
+  const sh=c.createRadialGradient(-r*.3,-r*.35,r*.2,-r*.05,-r*.05,r*1.15);
+  sh.addColorStop(0,'rgba(0,0,0,0)');sh.addColorStop(.6,'rgba(0,0,0,.05)');sh.addColorStop(1,'rgba(0,0,0,.55)');
+  c.fillStyle=sh;c.fillRect(-r,-r,r*2,r*2);
+  // 下からの照り返し
+  const rim=c.createRadialGradient(r*.1,r*1.05,r*.1,r*.1,r*1.05,r*.75);
+  rim.addColorStop(0,'rgba(255,255,255,.45)');rim.addColorStop(1,'rgba(255,255,255,0)');
+  c.fillStyle=rim;c.fillRect(-r,-r,r*2,r*2);
+  // 大きなハイライト(窓の映り込み)
+  c.save();c.translate(-r*.32,-r*.5);c.rotate(-.5);c.scale(1,.55);
+  const hl=c.createRadialGradient(0,0,0,0,0,r*.5);
+  hl.addColorStop(0,'rgba(255,255,255,.85)');hl.addColorStop(.6,'rgba(255,255,255,.35)');hl.addColorStop(1,'rgba(255,255,255,0)');
+  c.fillStyle=hl;c.beginPath();c.arc(0,0,r*.5,0,7);c.fill();c.restore();
+  // 小さな強い光
+  c.fillStyle='rgba(255,255,255,.95)';c.beginPath();c.arc(-r*.42,-r*.5,r*.09,0,7);c.fill();
+  c.fillStyle='rgba(255,255,255,.5)';c.beginPath();c.arc(r*.45,r*.5,r*.05,0,7);c.fill();
+  c.restore();
+  // ふちの線
+  c.lineWidth=r*.06;c.strokeStyle='rgba(0,0,0,.35)';c.beginPath();c.arc(0,0,r-r*.03,0,7);c.stroke();
+}
+function drawIcon(c,k,r){
+  c.scale(.92,.92);
   const eye=(x,y,s)=>{c.fillStyle='#1B1B1B';c.beginPath();c.arc(x,y,s,0,7);c.fill();c.fillStyle='#fff';c.beginPath();c.arc(x+s*.35,y-s*.35,s*.38,0,7);c.fill();};
   if(k===0){ // コロン(ポメプー・茶)
     c.fillStyle='#7A4A22';
@@ -184,11 +219,9 @@ function drawKind(c,k,r){
     [[-.35,-.2,.12],[.25,-.35,.09],[.3,.25,.14],[-.2,.35,.08],[.02,0,.07]].forEach(([x,y,s])=>{c.beginPath();c.arc(x*r,y*r,s*r,0,7);c.fill();});
     c.strokeStyle='rgba(0,0,0,.3)';c.lineWidth=r*.06;c.beginPath();c.moveTo(-r*.6,r*.1);c.lineTo(-r*.1,-r*.05);c.lineTo(r*.2,r*.15);c.stroke();
   }
-  c.restore();
-  c.fillStyle='rgba(255,255,255,.28)';c.beginPath();c.ellipse(-r*.4,-r*.55,r*.28,r*.13,-.6,0,7);c.fill();
 }
 function drawIce(c,r){
-  c.save();c.fillStyle='rgba(215,240,255,.55)';c.beginPath();c.arc(0,0,r,0,7);c.fill();
+  c.save();const ig=c.createRadialGradient(-r*.3,-r*.35,r*.1,0,0,r);ig.addColorStop(0,'rgba(235,250,255,.15)');ig.addColorStop(.7,'rgba(200,235,255,.3)');ig.addColorStop(1,'rgba(170,220,255,.75)');c.fillStyle=ig;c.beginPath();c.arc(0,0,r,0,7);c.fill();
   c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=r*.09;
   c.beginPath();c.moveTo(-r*.5,-r*.3);c.lineTo(-r*.15,-r*.05);c.lineTo(-r*.3,r*.35);c.moveTo(-r*.15,-r*.05);c.lineTo(r*.35,-r*.2);c.moveTo(r*.15,r*.1);c.lineTo(r*.45,r*.4);c.stroke();
   c.strokeStyle='rgba(160,215,255,.95)';c.lineWidth=r*.1;c.beginPath();c.arc(0,0,r*.93,0,7);c.stroke();c.restore();
@@ -482,6 +515,7 @@ function render(){
     if(ghost.cell){const p=cellXY(ghost.cell[0],ghost.cell[1]);ctx.save();ctx.setLineDash([4,4]);ctx.strokeStyle='#FFF7E8';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,BR-1,0,7);ctx.stroke();ctx.restore();}}
   // 玉
   const px=sprites[0]?sprites[0].width/k:0;
+  grid.forEach(b=>{if(!b.pop){ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(b.x+3,b.y+BR*.62,BR*.82,BR*.38,0,0,7);ctx.fill();}});
   grid.forEach(b=>drawBall(b,px));popping.forEach(b=>drawBall(b,px));
   if(shot)drawBall(shot,px);
   if(state!=='title'){let left=0;grid.forEach(b=>{if(b.target)left++;});txt('のこり★'+left,L+14,DANGER-16,12,'#FFE36E','left');}
