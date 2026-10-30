@@ -180,7 +180,13 @@ button.danger{background:#E5484D;color:#fff;font-size:14px;padding:9px 18px}
 .zk-reset-done{margin:0!important;font-size:12px!important;color:#7FE0A8!important;font-weight:800}
 .share-btn{font-size:14px!important;padding:8px 18px!important}
 .share-done{font-size:12px;font-weight:800;color:#7FE0A8;word-break:break-all}
-.card.about{text-align:left;max-width:340px}
+.card.about{text-align:left;max-width:360px;gap:14px}
+.about-lead{text-align:center;font-family:var(--f-display);color:var(--rail)!important;font-size:14px!important;margin:-6px 0 0!important}
+.card.about section{border-top:1px dashed rgba(255,255,255,.15);padding-top:10px}
+.card.about dl{margin:0;display:flex;flex-direction:column;gap:6px}
+.card.about dt{font-weight:800;font-size:12.5px;color:#FFE36E}
+.card.about dd{margin:0 0 0 .8em;font-size:12.5px;line-height:1.65;color:var(--ink)}
+.card.about #aboutClose{align-self:stretch;font-size:16px;padding:12px}
 .card.about h2{text-align:center}
 .card.about h3{font-family:var(--f-display);font-weight:400;font-size:14px;color:var(--rail);margin:0 0 4px}
 .card.about p,.card.about li{font-size:12.5px;line-height:1.65;color:var(--ink)}
@@ -292,39 +298,94 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
   </div>
   <div class="overlay" id="aboutOv" hidden>
     <div class="card about">
-      <button class="xbtn" data-close="aboutOv" type="button" aria-label="とじる">×</button>
       <h2>このゲームについて</h2>
+      <p class="about-lead">コロンとムーンの<br>ポンポンパズル</p>
+
       <section><h3>あそびかた</h3>
-        <p>画面を下に引っぱって、はなすと玉が飛びます。強く引くほど左まで飛び、点線の高さから真下に落ちます。同じ絵を3つ以上くっつけると消えます。玉が点線より上まで積もるとゲームオーバーです。</p>
         <ul>
-          <li><b>標準モード</b> 置いてある絵の玉をぜんぶ消したらクリア。虹の「まほう玉」とボムが出ます。</li>
-          <li><b>エキスパートモード</b> 最初から玉とおじゃまがたくさん。ノルマの数だけ消したらクリア。アイテムは出ず、床が速くせり上がります。</li>
-          <li><b>迷子札図鑑</b> 2連鎖以上や大量消しをすると、ときどき迷子札が出てきます。全16種類。ゲームの勝ち負けには関係ありません。</li>
-          <li><b>パズルモード</b> 下から玉がじわじわせり上がります。ゴールラインより上の玉をなくしたらクリア。ボムが出ます。</li>
+          <li>画面を下に引っぱって、はなすと玉が飛びます。</li>
+          <li>強く引くほど左まで飛び、点線の高さから真下に落ちます。いちばん弱く引くと、いちばん右に落ちます。</li>
+          <li>同じ絵の玉を3つ以上くっつけると消えます。すき間に上の玉が落ちて、またそろうと連鎖になります。</li>
+          <li>盤面に残っている絵の玉しか出てこないので、最後の1個まで消せます。</li>
+          <li>玉が上の点線より上まで積もったままになると、ゲームオーバーです(3秒以内に消せばセーフ)。</li>
+          <li>「ガイド」ボタンで、玉の落ちる場所を点線で表示できます。</li>
+          <li>「≡」ボタンで一時停止して、やり直しやタイトルにもどれます。</li>
         </ul>
       </section>
-      <section><h3>注意事項</h3>
+
+      <section><h3>モード</h3>
+        <dl>
+          <dt>標準モード</dt><dd>全30面。置いてある絵の玉をぜんぶ消したらクリア。2面ごとにレベルが上がり、30面クリアでエンディングがあります。</dd>
+          <dt>エキスパートモード</dt><dd>最初から玉とおじゃまがたくさん。ノルマの数だけ消したらクリア。床が速くせり上がり、アイテムは出ません。玉の並びは毎回変わります。</dd>
+          <dt>パズルモード</dt><dd>下から玉がじわじわせり上がってきます。黄色いゴールラインより上の玉をなくしたらクリア。森・春・海・秋・冬の5コース(各5面)があり、クリアすると次のコースが選べます。最後のコースのあとに、ひみつのコースがあります。</dd>
+        </dl>
+      </section>
+
+      <section><h3>アイテムとおじゃま</h3>
+        <dl>
+          <dt>まほう玉(虹の星)</dt><dd>落ちたところの玉と同じ絵を、画面じゅうからぜんぶ消します。標準モードだけ。</dd>
+          <dt>ボム</dt><dd>落ちたところのまわりを、石や木箱ごとまとめてこわします。</dd>
+          <dt>おやつ</dt><dd>となりの玉を消すと食べられます。砂時計がもどります(パズルモードは、せり上がりが少し止まります)。</dd>
+          <dt>木箱・鉄の箱</dt><dd>木箱は2回、鉄の帯つきの箱は3回当てるとこわれます。</dd>
+          <dt>石</dt><dd>となりの玉を消すとこわれます。</dd>
+          <dt>氷の玉</dt><dd>となりに玉が落ちてくると割れて、ふつうの玉にもどります。</dd>
+          <dt>カメレオン玉</dt><dd>玉を1発うつごとに、絵が変わります。</dd>
+        </dl>
+      </section>
+
+      <section><h3>迷子札図鑑</h3>
         <ul>
-          <li>音が出ます。音量に気をつけてください。画面上の♪ボタンで音を消せます。iPhoneはマナーモードのとき音が出ないことがあります。</li>
-          <li>長い時間遊ぶときは、ときどき休憩してください。</li>
-          <li>ベストスコアは、遊んでいる端末のブラウザの中にだけ保存されます。ブラウザの履歴やデータを消すと、ベストスコアも消えます。</li>
-          <li>スコアなどの情報を外部に送ることはありません。</li>
-          <li>無料で遊べます。動きや表示は端末やブラウザによって少しちがうことがあります。</li>
+          <li>2連鎖以上や、たくさんいっぺんに消したときに、ときどき迷子札が出てきます。全16種類。</li>
+          <li>レア・超レアは、ノーマルを全部集めたあたりから出はじめます。</li>
+          <li>ゲームの勝ち負けには関係ありません。</li>
+          <li>図鑑の迷子札は、MonChienの迷子札をイメージしたイラストです。実際の商品とはちがいます。</li>
         </ul>
       </section>
+
       <section><h3>AIの利用について</h3>
+        <p>このゲームは、生成AIを使って作りました。</p>
+        <dl>
+          <dt>プログラム</dt><dd>AI(Claude)と一緒に作成</dd>
+          <dt>絵</dt><dd>玉・背景・フレーム・発射台・迷子札・タイトル画像は、画像生成AIで作成</dd>
+          <dt>BGM</dt><dd>音楽生成AI「Suno」の有料プランで作成</dd>
+          <dt>セリフ</dt><dd>音声生成AIで作成</dd>
+          <dt>効果音</dt><dd>プログラムでその場で合成</dd>
+        </dl>
+        <p>コロンとムーンは、MonChienの看板犬2匹がモデルです。AIで作ったため、絵や音、動きに不自然なところがあるかもしれません。</p>
+      </section>
+
+      <section><h3>取り扱い上の注意</h3>
         <ul>
-          <li>このゲームは生成AIを使って作りました。</li>
-          <li>プログラム：AI(Claude)と一緒に作成</li>
-          <li>玉・背景・フレーム・発射台の絵：画像生成AIで作成</li>
-          <li>BGM：音楽生成AI「Suno」(有料プラン)で作成</li>
-          <li>効果音：プログラムでその場で合成</li>
-          <li>コロンとムーンの玉は、MonChienの看板犬2匹がモデルです。</li>
-          <li>AIで作ったため、絵や動きに不自然なところがあるかもしれません。</li>
+          <li>音が出ます。音量に気をつけてください。画面上の♪ボタンで音を消せます。iPhoneはマナーモードのとき、音が出ないことがあります。</li>
+          <li>画面が点滅したり、明るさが変わったりする場面があります。光の刺激で体調が悪くなったことがある方は、遊ぶ前にお医者さんに相談してください。</li>
+          <li>遊んでいて気分が悪くなったときは、すぐにやめて休んでください。長い時間遊ぶときは、ときどき休憩してください。</li>
+          <li>歩きながらや、乗り物を運転しながら遊ばないでください。</li>
+          <li>小さなお子さまが遊ぶときは、おうちの方と一緒に遊んでください。</li>
+          <li>はじめて開くときに、画像や音楽など約6MBのデータを読み込みます。通信量が気になるときは、Wi-Fiでの利用をおすすめします。</li>
         </ul>
       </section>
+
+      <section><h3>データとプライバシー</h3>
+        <ul>
+          <li>ベストスコア・迷子札図鑑・コースの解放などの記録は、遊んでいる端末のブラウザの中にだけ保存されます。</li>
+          <li>ブラウザの履歴やWebサイトのデータを消すと、記録も消えます。別のスマホや別のブラウザには引き継がれません。</li>
+          <li>名前やメールアドレスなどの個人情報を集めることはありません。スコアなどの情報を外部に送ることもありません。</li>
+          <li>シェアボタンを押したときだけ、あなたが選んだアプリに文章とURLを渡します。</li>
+        </ul>
+      </section>
+
+      <section><h3>そのほか</h3>
+        <ul>
+          <li>無料で遊べます。</li>
+          <li>最新のSafari・Chromeでの利用をおすすめします。端末やブラウザによって、動きや表示が少しちがうことがあります。</li>
+          <li>内容は予告なく変更したり、公開を終了したりすることがあります。</li>
+          <li>このゲームを利用したことで生じたトラブルや損害について、責任を負いかねます。</li>
+          <li>ゲームの絵・音楽・セリフ・プログラムの無断転載や再配布はご遠慮ください。</li>
+        </ul>
+      </section>
+
       <p class="copy">© 2026 MonChien</p>
-      <button id="aboutClose" class="sub small-close" type="button">とじる</button>
+      <button id="aboutClose" type="button">とじる</button>
     </div>
   </div>
   <div class="overlay" id="pauseOv" hidden>
