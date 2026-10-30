@@ -991,7 +991,7 @@ function update(dt){
   let moving=false;
   grid.forEach(b=>{const p=cellXY(b.r,b.i),f=Math.min(1,dt*16);b.x+=(p.x-b.x)*f;b.y+=(p.y-b.y)*f;if(Math.abs(p.y-b.y)>1.5||Math.abs(p.x-b.x)>1.5)moving=true;});
   popping.forEach(b=>b.pop+=dt);popping=popping.filter(b=>b.pop<.3);
-  if(state==='dying'){dieT+=dt;if(dieT>3.8)showOver();return;}
+  if(state==='dying'){dieT+=dt;if(dieT>AFTER.overWin)showOver();return;}
   if(state!=='play'&&state!=='clearing')return;
   if(readyT>0&&state==='play'){const before=readyT;readyT-=dt;
     if(readyT<=0){goT=.8;sfx.go();}return;}
@@ -1023,7 +1023,7 @@ function update(dt){
   if(state==='play'&&guideOn()&&shot&&shot.phase==='ready'&&pull>=MIN_PULL){
     if(Math.abs(pull-ghostPull)>.4||busy||(mode==='puzzle'&&Math.random()<.15)){ghost=predict(pull);ghostPull=pull;}
   }else ghost=null;
-  if(state==='clearing'){clearT+=dt;if(clearT>.9)showClear();return;}
+  if(state==='clearing'){clearT+=dt;if(!clearFx&&clearT>.35)startClearFx();if(clearT>AFTER.clearWin)showClear();return;}
   // パズル: 全体がじわじわ上がり、1段ぶん上がったら下の段が入る
   if(mode==='puzzle'){
     if(!incoming)incoming=makeIncoming();
@@ -1034,7 +1034,7 @@ function update(dt){
   else sandT-=dt;
   if(mode!=='puzzle'&&sandT<=0){
     {if(mode==='normal')curSand=Math.max(def.sandMin,curSand*.88);sandT=mode==='normal'?curSand:def.sand;rise++;grid.forEach(b=>b.y-=RISE);sfx.rise();addText({x:158,y:floorY()-40,t:0,s:'せりあがり！',small:true});}}
-  if(!busy&&(mode==='puzzle'?aboveGoal()===0&&stageT>1:(mode==='expert'&&cleared>=def.quota)||![...grid.values()].some(b=>isPic(b.kind)))){state='clearing';clearT=0;if(shot&&shot.phase==='ready')shot=null;
+  if(!busy&&(mode==='puzzle'?aboveGoal()===0&&stageT>1:(mode==='expert'&&cleared>=def.quota)||![...grid.values()].some(b=>isPic(b.kind)))){state='clearing';clearT=0;clearFx=false;if(shot&&shot.phase==='ready')shot=null;
     // 残った石・木箱・おやつはおまけでこわれる(パズルモードは残りをボーナスに)
     let n=0;if(mode==='normal')[...grid.values()].forEach(b=>{removeBall(b);n++;});if(n){score+=n*10;$score.textContent=score;sfx.item();addText({x:(L+DIV)/2,y:FLOOR-80,t:0,s:'+'+n*10,chain:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
     else addText({x:(L+DIV)/2,y:FLOOR-80,t:0,s:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
@@ -1078,13 +1078,29 @@ function pushRow(){
 const goalY=()=>FLOOR-BR-(def.goalRow-.5)*ROW_H;
 // 玉の上のはしまで線より下に入ったら「下」とみなす(少しでもかかっていたらまだ)
 const aboveGoal=()=>{let n=0;const gy=goalY();grid.forEach(b=>{if(cellXY(b.r,b.i).y-BR<gy)n++;});return n;};
+// 余韻の長さ(秒): 文字を見せる時間 → 文字が消えて盤面だけ見せる → ウインドウ
+const AFTER={textEnd:2.4,clearWin:3.4,overWin:4.2};
+let clearFx=false,clearVoice='';
+function startClearFx(){
+  clearFx=true;bgm.stop();sfx.stageClear();
+  clearVoice=mode==='expert'?pick(VOICE.expert):mode==='puzzle'?pick(VOICE.puzzle):pick(VOICE.clear);
+  if(!(mode==='normal'&&stageN>=30))setTimeout(()=>voice('clear',clearVoice),250);
+}
+// 盤面の上のあいている所に大きな文字をポンと出し、時間がきたらふわっと消す
+function bigWord(word,t,col){
+  const ta=Math.max(0,Math.min(1,t/.35)),fade=Math.max(0,Math.min(1,(AFTER.textEnd-t)/.5));if(ta<=0||fade<=0)return;
+  const sc=ta<1?.6+.4*ta+Math.sin(ta*Math.PI)*.25:1;
+  ctx.save();ctx.globalAlpha=Math.min(1,ta*1.5)*fade;ctx.font='40px "Mochiy Pop One","M PLUS Rounded 1c",sans-serif';const fs=Math.min(40,40*(DIV-L-24)/ctx.measureText(word).width);
+  ctx.translate((L+DIV)/2,DANGER-78);ctx.scale(sc,sc);txt(word,0,0,fs,col);ctx.restore();
+}
 function showClear(){
-  state='clear';bgm.stop();sfx.stageClear();
+  if(!clearFx)startClearFx();
+  state='clear';
   const bonus=Math.max(0,Math.round((def.sand*2-stageT)*10))*10;
   score+=bonus;$score.textContent=score;saveBest();
-  const cv2=mode==='expert'?pick(VOICE.expert):mode==='puzzle'?pick(VOICE.puzzle):pick(VOICE.clear);
+  const cv2=clearVoice;
   // 「！」「、」の後ろでだけ改行する(ことばの途中で切れないように)
-  {const el=document.getElementById('clearTitle');el.textContent='';cv2.split(/(?<=[！、])/).forEach(t=>{const sp=document.createElement('span');sp.className='phrase';sp.textContent=t;el.appendChild(sp);});}if(!(mode==='normal'&&stageN>=30))setTimeout(()=>voice('clear',cv2),250);
+  {const el=document.getElementById('clearTitle');el.textContent='';cv2.split(/(?<=[！、])/).forEach(t=>{const sp=document.createElement('span');sp.className='phrase';sp.textContent=t;el.appendChild(sp);});}
   document.getElementById('clearSub').textContent='ステージ'+stageN+' クリア';
   let note=stageN%2===0?' ／ つぎはレベル'+(Math.floor(stageN/2)+1)+'！':'';
   if(mode==='puzzle'){note='';
@@ -1233,8 +1249,8 @@ function render(){
       ctx.save();ctx.strokeStyle='#FF3A3A';ctx.lineWidth=3;ctx.shadowColor='#FF3A3A';ctx.shadowBlur=10;ctx.beginPath();ctx.arc(b.x,b.y,BR+2,0,7);ctx.stroke();ctx.restore();});
     // 「ざんねん…」がふわっと出る
     // GAME OVER の文字(上のあいている所にポンと出る。玉の配置は見えたまま)
-    const ta=Math.max(0,Math.min(1,(dieT-.15)/.35));if(ta>0&&state==='dying'){const sc=ta<1?.6+.4*ta+Math.sin(ta*Math.PI)*.25:1;
-      ctx.save();ctx.globalAlpha=Math.min(1,ta*1.5);ctx.translate((L+DIV)/2,DANGER-78);ctx.scale(sc,sc);txt('GAME OVER',0,0,40,'#FF5A5A');ctx.restore();}}
+    if(state==='dying')bigWord('GAME OVER',dieT-.15,'#FF5A5A');}
+  if(state==='clearing')bigWord(mode==='puzzle'?'GOAL!':'STAGE CLEAR!',clearT-.35,'#FFD34D');
   if(state!=='title'){
     if(mode==='puzzle'){const gy=goalY();ctx.save();ctx.lineCap='round';
       ctx.strokeStyle='rgba(40,20,0,.75)';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(L,gy);ctx.lineTo(DIV-DIVW,gy);ctx.stroke();
@@ -1473,6 +1489,8 @@ document.addEventListener('touchmove',e=>{const c=e.target.closest&&e.target.clo
 cv.addEventListener('touchstart',e=>{if(e.cancelable)e.preventDefault();},{passive:false});
 document.addEventListener('dblclick',e=>e.preventDefault());
 cv.addEventListener('pointerdown',e=>{
+  if(state==='dying'&&dieT>1){showOver();return;}
+  if(state==='clearing'&&clearT>1){showClear();return;}
   if(state!=='play'||readyT>0||!shot||shot.phase!=='ready')return;
   dragging=true;startY=e.clientY;pull=0;cv.setPointerCapture(e.pointerId);e.preventDefault();
 });
