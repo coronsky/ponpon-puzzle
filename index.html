@@ -80,7 +80,8 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
         <i>1</i><span>画面を下に引っぱって、はなすと玉が飛ぶよ。強く引くほど左まで飛んで、点線から真下に落ちる</span>
         <i>2</i><span>同じ絵を3つ以上くっつけると消える。すき間に上の玉が落ちてまたそろうと連鎖</span>
         <i>3</i><span>はじめから置いてある玉(★)を全部消したらステージクリア</span>
-        <i>4</i><span>ときどき出る虹の「まほう玉」は、落ちたところの玉と同じ絵を全部消す</span>
+        <i>4</i><span>ときどき出る虹の「まほう玉」は同じ絵を全部消す。「ボム」はまわりをまとめてこわす</span>
+        <i>★</i><span>レベルが上がると、おやつ(砂時計が戻る)、木箱(2回当てるとこわれる)、カメレオン玉(1発ごとに絵が変わる)が出てくる</span>
         <i>5</i><span>砂時計が落ちきると床がせり上がる。点線より上まで積もったらおしまい。2ステージごとにレベルアップ</span>
       </div>
       <button id="startBtn" type="button">あそぶ</button>
@@ -113,14 +114,20 @@ const ACX=180,ACY=190,AR=168,BR=17,LANE_X=(DIV+R)/2,DANGER=215,G=1400,MAXPULL=90
 const ROW_H=BR*Math.sqrt(3),RISE=ROW_H,COLS=8;
 const KINDS=[
  {name:'コロン',bg:'#FF9F43'},{name:'ムーン',bg:'#5FA8FF'},
- {name:'ほね',bg:'#3FC995'},{name:'ボール',bg:'#FF6F9F'},{name:'にくきゅう',bg:'#A57BFF'},{name:'いし',bg:'#7E8589'},{name:'まほう',bg:'#FFFFFF'}];
-const STONE=5,ITEM=6,H_STEP=1/240;
+ {name:'ほね',bg:'#3FC995'},{name:'ボール',bg:'#FF6F9F'},{name:'にくきゅう',bg:'#A57BFF'},{name:'いし',bg:'#7E8589'},{name:'まほう',bg:'#FFFFFF'},
+ {name:'木箱',bg:'#A86B34'},{name:'ボム',bg:'#3A3F4C'},{name:'おやつ',bg:'#FFD98A'}];
+const STONE=5,ITEM=6,CRATE=7,BOMB=8,TREAT=9,H_STEP=1/240;
+const isPic=k=>k<=4,isShotItem=k=>k===ITEM||k===BOMB;
+// コロンとムーンは写真の玉
+const PHOTOS={0:'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCACgAKADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD1pTTgR2rEn8RwRZCIzGq//CQyT8RrgDrjtXkurFHoqnJnSeZhSQpb6CqV1fyxqcQk/XpWPLrPlLma5ijPpuyaoPrktw5jtvNmI6kDAX6ms5Vb7Fxp23L11qfzbhGyn2HH8qgXxBMmQEdse2f0qM2kqlXun+c9Iy/A+tWn1ODSo1WOGOW5f7q4wB7+w/U1hqaqxbtdUvJF8wW0q49VKj9atrrETkCdTGw/iBrGbXUiObqYGU9VD8CtOz1TS79PLcKr9sgYatIeomvIvpeoRhXDqe1TJcDkg9P51lT2tu2JbRzHjqD0qBb478EkHoc1qp23Fy3NnzlBLA4Bp084A68betZhfIVQSR1FNnnPlrnjC4pOqHKFxfiN85y3YVUk1VlOHfPrzWdqF8Igdv3j1Nc3fXGpPkQROS38RBxWLlctRR28Wt7mCiRUFdFpr2syhpJjJ7V49Z6bqLsXmvH3Zzt7fkOa63QJpVdQkscoU/MEBDfh7+1S5ND5U0d5dWkLqTGePQdfyNc5d2pmlKndgdB0rd0+++0RKUfcG6EcbvbHqMU+4tkmywiyR/Eo/pTk+ZaEwSi9TIjhxGoI6VHKI0U5GSKszuIQQ3B9RWfO4cEBuTWaidUXc4OfUwSQNvH+1/OqM/iR3lSytDvdjxjgCsjUbx3PlRgdcH3Pp+da2jWEenqJJOZXY5OOenT8O9XY5rmzp2l7z9ovJPMAPyqD1Pp/9f8ALHe9NfJHIsaEKqrkr0VB6cd6ybzWHt4kjBxIw+Ud/rVOW/WG3LFvu/KAOcv60RjfVktm/cawYQWidZbt+FLj7ue+KLW0KwtK8wM75Z55D0rBsi0Uf2i4BLv2/u+3+f61Fq2qExGFVWSR2wqjnntx7evc0b6D2FuLrTbmdrcSXF227G4fKmfcjk1q2ejzrCPKlfy+uFQtj8aytFuXsJMiyW4c/wAGAefUnp+FdnDrviO2jSWTSoLeM8cHFXypjuynZatLZSmKVn9CGUitOW7WQhkORjmq+r79Ttkk324nUZZATuJ/l+FZ+lOZMxNnnp7VLutBqzN6G7LDHTFPvZP9HTHXvVSBCcKByO1R3szKMnoKhtjsQPsTLnBPYnufaqVxPHGpaaSUA9xxUdxehjklgfzNQRyyO2Uhzn+8vWmgMvU9Tt7XbPDLMcHDqSVP1APWtXw74gj1GRbeK6CXg5gduEm/2T/Q1S1SwgnjeOdPLLc7guQPqBz+VcE80uj3y7ZPkVshxyvXseoquS6JUtT6As79JYRM8TQbnEdyvQwydA/54B/PtXRW1yJ1KyZE8Rw2OCfeuH8L6yut6Z9oODdRxhLgf89ozwG+o6H61tWl6TtkR8sAEJ9R1U/lx+dOK0B7nQX9vFPAWdckDO5Rk49fesO2sIpLuIRTrIm7njFaum6pFcw8kbS2yQf3G7H6Gs7ULY294zRja2c4X+Me3uP1BpSvuOEraHj+nwR4e+lQRQRj5B3Pv9TVme/W0gE8g/0iQfJD/cX0/qahvriIyDLr9mtznHZ2/wABxWI99vmM65eaTIQsOBTaILclwyuZZW/fNxkdjUBuvOuIYFbCqwRQPXu34c/lWdJd+VDLduxYqdkZP8bnjj2HQfjUenyhZFlkbG1CTk9epP6Z/OtEtCTpdQvdqLHHyz4SNAehP/1sflVU6jaaRdBJC1xckAlU9/6n+VUo7ks32yTduAO1fc9T/StLw3pUcxa6mBeYt8zu2Ao9vf37CiMRtl238W3MEqyi2gsoQBhmj3SD3xjit9fE0mrorWczXHA3AIfm9euf6VWmn8PQKI/NtWYdRGu7n3NWo/ENtBDtt38rd8q+T8o/SqdrEpmrDpclzaCeMgN1KK3Q++ehrKldrO5VyCrE4bPrVq21i4lTMylou0q9QferaLa3ZLuqSZ5y3asJtPRGkWL9tWObzFJHGeao3d2s0uWI2qBn0onIkcmRM9kRT0H9TTo9MJk8x3PspI4/Cs7FpkDCKcHyNzn1PQVnXB1CAlkWLH+9mt5xHbKIhEMH+IN1/AVE8ck5YeW2z2IyKpaCephNqr3cP2fUYdoX7sy5O38RzXFeL9NazuYpnw1vcZBkT7j/AJdGrrtUX7HdLGTgyfdDDaT7Bhxn2rI1eBjpkzbWmtW/1sfdGHQj0Pv3FbxMmzS+E97m6RVkyEJRl/vxt1H1xz+Fd/HKYdVltgQSR8h6ZIP9f61478N7hrHWHjVgSHG3PHPOB/KvSdSv431VZ4W+ViHTnrldy/1H4UbXL3NWx1IWGrxCQkW10fJlU9s/db8DxXT36u1sjn/WQnBPrjv+Rrhb4C8hlYHBJI4PKtjp+f8AOuu0XUTqekpNJ8ziMb17nHB/XNEEtUxy7nhuoSlk8tidoOGI71myk5VAcSSjtxsSr10Q07nB8qLt/eNYN5ebTIc5cnBPqfQewoSuRcj1O8FzcRW0PEUJwoHTPrUu1pbyK3Q4BIBHqO9Z1qjeevfBGSfXPJrdt57PT7hnl/e3DckE8Iv/ANerSJuakGn3V437n93Ag5kIyPoKkvVW3iET3DbAMbQxXd9QKrXfiX7XCq7G8tR8qgkKKwrzXY4gcoDjnrnFUkybmoZbBVKpGobvwfzqzZ3kLxGGNSJBkk56D8e9cHd+KbZm2lcf7rqf61LFqjyoHik3gcZB7e9NxaWoJp7HqlnrP2SNUkVg4PUnGf8A69WNH1hriZ9iEgMSNvfnivO7O/nuo48sSxO0ZOeveuu0+5WxgREOByXPriueUOpqmdZHqTyy7GVlUAkkVLJqARFB9eTmuej1dbgq7fcXGcd6ZqGqqQpJx3wOAPSo5LFXOjj1hFYqFBUfUk1o2WpmRwI5Qp7KwH9cV55DryOz7XUgdOSM1rWl/wCcy7W6j+Fs4quUls6HxRpxubYSSqQGB68AH+h9642xvhY3UsF6GktZFMcykc7e/wCI6j8fWukuLy9On4djND0z97b9R6VychSZzjbuPBUNkMPQGtKe1mQzIs1bw74yeFpBIiSowkXpIA6kH8VwfxrqlvP+Jhf2u7m22yR/hIw/lXGeJGaK8WU53wqrZ/vJ0z+WPyrVtLxbjXbWbP8Ax+QSQsT2bqM/jRNGkGeir8tyHjwYruNGx23fdP8A7LW14YuTa3MsDD5HHmoPUMOR+dcpo1ybrQYzljLbllx7gZB/SuhsZwZIrpOV3kcejc4/PNC01KfY8q1km2SZQcNya5ViMg5yEXJ+ueK6PU2inMyRsWJGOf1rmJT5alT/ABOM/Qf/AK60tYwvcY0jJIAMAq8efyJP6mrtrEoZ55MF3OeazFczXeEGd7Yq/fy/ZoyApZzwAO1UkSyvq+sC3QqnzMegz1rjNce4co7u5Ruo7V0P2WSZjJKQCe3U0y80+O4tzGR9D3zWsGou5lNcysclGsfA+TkdWHSrml3b2MwIOY3yCO1R3GlTQyEAZHbFdB4W8NPfMXn3YXhVC5GK6pyi4nPCMlI6LwwXnheQr9zaf510mWmgMfI53H6U3RtJWymWMKPLYYxWvdaS6WdwyDBJ2Ljv1/oDXBJI7UzNgnzH8nRuBj09qztXuGabasnfkewrci0h7SzR3BLABAB3b0/DnNY3iLR5LXTZppS6NgnIHfHAqOS5fPY5G68UW9nP5QBbbwTuxg1ueH/GCTzfu/KJXsGO78sV5qEeYuSwR25w3WpHLyC2jgZjLCOGHUEnPUV2fVo2OX6xK59BaZ4nsLlPLuC0QbqwbKj8OtP1DQTcQNe2LrID3ByG+vrXllh/aAjjEsgZiBnj5s/UV1mhXmtWLbopmwTyp71xWsdO5Hrf7+GGSQfvIwY5EPJCnOfr6/hWbY3DQRw5b95bSqye5HGPxGK6/UY11WPzJYRDOOcqOD7f/WNcbfWTQTT2zZCuDt9iP8j8qGioM9O8NTpDcTxL9yUiQf5+n863NLYxfarMnOwAj32nH8q4fw/eyNFZShvmH7tz+o/kBXYW0oGpJMSMSKQfrj/61Z36Gx5w1oELyLn3Y1galbKynY2Dn8etdJcvuhVR90dcVBFpsbAXFwMqfuoP4q6ZI40zE0zTjbwfapBhm4XPb3qK4Vdxd257Zro7i1e4OZD5S+gHNFvokD/MtuGXP+slJxUcxVjlfLLglFJH97HFCWE0vEcUkreigmu+s9KtRgiFGx3CdfYCuq0jQnkIH7qzjPZU/eY9SRQ6iQuU8ht/CGqzMsslhMkZ9YzXQ6dp01nhdrx4/hMBAJ+ua9Lu/C1o4It9Qk8w8Hcx/rmqqeH9TsVAikMif7+7+dQ66HymHb2/mRCYqNykc/5/rW8trvsUCj5yWx9ScfyNaFvZwPGwurcwyhcBlGA317Gkspre3i2l9zQsQPcnp/KqjUTQWFh0eN54l8tX8hdqp0Ck9ST2qzrfgu9v9JlWC3z5i4LxcN+BI/lT9PvEhdViKlyc5xuwe557+9XLyT7VExaVo5OeSoJ/lWXtrMvlPmzxH8N72yvpk8u4xnPzxYI9STTNI8Kx2Ey7lLS46HkV9Bx6dLdjZcXMkn0AA/PtSv4AhuwzkSfXarnH1HNaSxUpK1yFSinc8s0rQnkZfl25PYY/Wu40jwe5UNhZM8jI/wDrit+18FXEDZtphIvpir62M1hw/mRv2wMZHtWHPc0ZlPodkyiG5RoHIwrE8E/X/wDXXmXjTw/LpmoPlV8onKSIRhvfGf5cV7BJqE0yshWG7THzJJ8rH9Np/GuZ8R2mn3thLGQYwvzJHKcAH0Bzlfzx7muulC6MZSaZ55oU4RDH+HHY13GmM81lbTAEPG4VvxB/xrzeyhe3u2MQYguwIbttHXNep+DIvtB8qceWSwJVhyCBnOKp4d7lLEK2p51G6s4ViNidSf5Vbjk82TCZ579/p7VzI1ZEc8MDnGCMYrZsr2NY/OY5PQDuTVSizNSRrx20YbL4YDk+n0HqfftSS3aSTKihXYcBR0HtVK9vWVBbKcORuds9BTdLuYrW1lvQBIyt5canozn19hWDRomb5uYNJjSW6k3St9yNeSf8B7/lVyy1WW8WaW+vItPsbdPNm2rvkAJ+VQOm49vz7VxvnMJmlnkMlxJy0n8X0X0HvU0+oLa6eLZAqec7SSEnlmGAMkcnA/mankG2dIfHGnM4it7byo/4WbLufqx7/SpP+E+e1O2C7E6d4phgj8e3615/cXO4bSFAP8W1v65rD1bUJLCMOmJGHCHd/Wj2HM7D57I9lHjSKWHAnCl+NoPX8PWueuvEDLMzq5yzdAetecaOZbh1kuLlQ3UAHp7etdOIp7yZdqow4O1TzitoYdRVjJ1W9TudM8QxkKWLjnqrc1uReIvOPyzbgOx4NeWvdnTphG6yIHB2bm7+nFTabqMzv8xbr2P+NcdShKEtTphNSR7Xo+ow3DhS86v/ALMg/ka6D7T5a7/MLKnLNjBH1Hb64/GvI9I1C8QjyJFkYf8ALNu/0zXUad4rW5kCXBNvdR8gFx8w9R6e4NRyMTO9jmSVRLkMvQsACf8A69TTR29xG1tIEkDfN5cnOfdTXIS38lkBfWRDREgTwdF+o9Kvx3yapZg27suMtGT1B7qa0UOxLOf8S+ArmR3vNHvLmV15+ztNtZfx/i/HH41yUllq9orwvcTOihvMMm1lPbDHpjP49K9OsdZW6Iimm2XCHaH6c+h/xpmpNb3m9Ps0RuRy0e4An3yO/wDOvQpSstTlqLU840Hw9bPeSzCdFjKlfLVDjpzjPQZrvtO05bPckMpKj5mZgGHII/Pp1qvPaQecXmUeYxAypBzgj19qv2gWGMKqwiIqVHPIXPt37/8A162UrmLPmZtObdulBOzP3uo9TTbe78i7jJIBUEqpPCk9PyArVubVgxUh5BuKEtkg45Le/PA+lY8sTIxdkb52zjuewH0qtx3Lj3TsZTI5aSQliB6dhn9T9auSXnkW0AjAVIY8queC7nqfoAPxNZaoG3EDJII+UZ5PJ/PAovpZDHDFGxZwDgf3Sf4j9BWU4IuMyZbpi5aOQEqctu5JPbP+HtV20bz4MFeYjkse4PXH4j9axILQPJksVgixkAdT/U9K0ZL5bSMBmPH8CDJ57D/PrUyh2LUi9Ksar8qp9W5Nct4jU+T5irnacn6VuJeoIzJJtDMMjcfur2P49hWdqW2eNiDlGGPrSgrMJu6ONttVdbsKAQjce+a3oPEklgDM0hCrx16msSSyNtIflLYPDAU63je5j8poPOdhwCvANdTinqYKbWh3On64fFQhV4/uNuBPGAK2zp6wspRzuHbOc/SqvgnSLXTLF/O2+cw3OAoIA9BWnqWoWscYGQyjB+QgkD+8K46/vS0Omk7LUnt3cYljkkDp3Q8r71vz6rFO0UtzD5wdd25FwRxz+ua4mDWwwzDdwNg/8tFKsPxrRl1Tz40EMiJNtOQgJB+lZqkynUR01j4pt7CY2733mWrDBVx88Y9c98e9aGk699j1B4VfdHIw3KgJ2N1DD26GvN7g3Mq4uI2V1Jw4I2t68ZrU8PmSO5jaabICgMc4JAbbg+natFRRDqnp10FknGowh2fISRY8c8cE56D368VV1q/1NPKaKB0VVJ2tH1PHRuozVvRxCkJjupB5mC4xzgg9Mr2PGOxNJ4t0eO+s5r+0kniWJSfJZgiycHjI6duau1jFu5DBqE97GHu4pnEmI41LAFhjd1HQEfqO1dFo0luINgiQ5TKsHxhT/sjqcj1/nXkGm6tIkwdL15JEydryFVUA9MY5IznPA46HrXeaXOZHQxNGCxZt7AooUAdFPerSsSee6jZMgkJfYSdoxgfKOv8A9euburY5GwM+4ZyowQOgz6D0HtXp+p6KY4opZIwyFTjPQEHkn17dcVyl7Y9U2LkEjJOO3fvTjIDmYLYkSAcRrk8D+vc02SBY0dCjfMBvKrnB9M9PatcWkaEM6gALsHlIcY6fQd6J7PzvlIBYE7VdhgY6dOvWrA5vzJEOPlXDEZBz/n61A2+UkSlVwdxAz07fpVzUbS4hc+c4LkcMvTGem3+uajiijmhUZZfVtu0DAPQH8v0o5Q5jPuJW83awTBO7GeOOAM+uKPOn2BkXzBjoo79hV025aLeVVWOT8yjoBkkD+tWYLVRG5YF1I2rg9CemT7jNNRByMWWeNztCHIB3FemfSrNlcW0W2VlUFjg57H0q3NoDLsw6Evwu4jP4AdqWz0bDZlTyxjGGU5I9fYfSqsieYlTVZGcxRJIsiHh0/h4qCKxmuHEyoD8/ylOACTnj2z2rattLMbbsMhL8defYjGa14YeE8xI2UAfebGOvHPeoskNSuc9BpMqyATSxknH3f4cHp6etdHpejNMihirHgr8uO/T+VSGwWKRvKmjKlxgFR+XAz756c1u6DYRSTSQMpBVcBsOATnBHqaQ7mRf6UzRbMMC+dhMeAPVc+vvzUGlQXNhqIilgVnD7EnID4XG08ZwRjGM88cV2wRFgYTWzbCHG4ocEfTr+VcTrEP2G/FxHGrrvG1gNiE9NuATz3PH4VKEemaNFBayxXEchm3xiIlBgcYG4Z+hyDWzqUDQ28LWmQs4ZBlv3fPI6HA/EVy3ha9s9REYlhgLMm3YkzJk46AYxk9R6HjNdbaiGYR21lIYiExHHN/rPqUbAPocGs5DR4nr0Rtb9p4lDZdkXc4JQg8gnjjOa1dH1u2vmeKR2kIRxD5Zk3A7sgjPB44/Dn1qx8UdI+zamLyYQ75BtJDMxUgDnHY+w/OuN0szNczLM9yw2lldHLbWxxkD6c+nqK1jqriPZNVit0hjf7VsSdepAba3pluOmBXnd3tW4J80MueN6EqDng5B5/wDr16Cspmt8F5oY3ODH8qYP0/wA61zWq2QjkWS0tn8oDy2aKUqw4xlFA6kn3qY6Duc5HGZFXc/zHaAFOWyTkA9gfbjvVg2aIXLEkDgtzhs9unT/AArSs9OUSiKBxAsgHmKVx9PyPU+tXpdIS1dba4fIMZKCF8geu4/T8Oau4jz/AFa0jDFgUjHIDFiQSOvGM/nwKjtdNLYKurEAYyMjPJ5J5/8A1810Oo2h025WOUIVKg70J25PbJxj6AVSitlilWPywUJKlnTBdvXPXrVITMm50byYVMbo6yqSzMcqg9Bn1ptpAsDxj7NjLdUb5fxGOD/SukkjPlswRwGU/dfIB6c554rnp4/szksqSRr12cAZ77e59wfXincTN5Y0ljO6Mvycnb86cdB79uPWoHsxl/LLoueUOFxx0wcZ6VZ8PNvZi0YK8iRt/wAwAwc4GSCO5x0rrprC1+xgR3SQszfLtKlc46qrjPPfB4z6VLYzj4NPypTYACu5WaJwoyPVSeK1YNLdl8qWKTMTBW8nntkHaeSOccVd+wyQ3MEchO9kz5e0KHyOSNvynp2xnvVlVTT2P222ktlKjY4gWVfQ/MOv0NK4WKcGm3JRSf3Y43xyBowB/eOPYjk1o6aqR3yus8JkAI2ISyqSfXIA6GoXnjUR/vohuwVDb1Bx1wP4V/AVZsEg+1RSzs8Oxd+/koehLdARjr6ilcYl5eQ294JI9oL7l2pOZBt7k8ZXHoOSSK4nVnL3wLM8eAWIHzSxk/MSMD5TgdSCOvPGK6HWdWhnE0NzcRS/NvDSggISeobjdx1UY/HFcQkiT3Rjd7WcxptUspzjqOR1PI65xx6URQmzv/DlxNDpit5pkI8tZJS4ZWBB4II4GCO3UZrs7WdPsfmEmOILuCSSERsfVTgEHPPTBrhNGCPDiMK8oxuIcvgAY4bjGAOnNbjwxJ+93AqmNjIpYIcDkjIJPPPNRMpFTxOltNYSRqZUVsuzWkjkDofmBPzA+1eV2NxFFqQCOixKeWViJAO/ykYzgd69F8WywRaaga4EjSICA5LDJP30YdPwJNebwNHHqIM7vLyTtYMePx/nk1dNaEyP/9k=',1:'data:image/jpeg;base64,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'};
+Object.entries(PHOTOS).forEach(([k,src])=>{const im=new Image();im.onload=()=>{if(typeof buildSprites==='function'&&scale){buildSprites();drawNext();}};im.src=src;KINDS[k].img=im;});
 // 2ステージごとにレベルが上がる。rows=最初の段数(少なめ), colors=絵の数, ice=氷の割合, stones=石の数, sand=床が上がるまでの秒数
-const LEVEL_NOTE=['まずは3しゅるい','段がふえた','4しゅるい・氷の玉が出る','石が出る','5しゅるい','もっと高い山','砂時計が速い'];
+const LEVEL_NOTE=['まずは3しゅるい','おやつ玉を消すと砂時計が戻る','木箱は2回当てるとこわれる','カメレオン玉は色が変わる','氷の玉と石が出る','5しゅるい','もっと速く'];
 function stageDef(n){
-  const lv=Math.floor((n-1)/2),first=(n-1)%2===0;
-  return{lv,rows:[2,3,3,4,4,5][Math.min(lv,5)],colors:[3,3,4,4,5][Math.min(lv,4)],
-    ice:lv>=2?Math.min(.3,.12+.04*(lv-2)):0,stones:lv>=3?Math.min(6,2+(lv-3)*2):0,
+  const lv=Math.floor((n-1)/2),first=(n-1)%2===0,m=x=>Math.min(x,6);
+  return{lv,rows:[2,3,3,3,4,4,5][m(lv)],colors:[3,3,4,4,4,5,5][m(lv)],
+    treats:lv>=1?(lv>=3?2:1):0,crates:lv>=2?Math.min(6,2+(lv-2)):0,cham:lv>=3?Math.min(3,1+Math.floor((lv-3)/2)):0,
+    ice:lv>=4?Math.min(.3,.12+.04*(lv-4)):0,stones:lv>=4?Math.min(5,2+(lv-4)):0,
     sand:Math.max(10,22-lv*2),
     title:first?(lv===0?'まずは3しゅるい':'レベル'+(lv+1)+'！ '+(LEVEL_NOTE[lv]||'もっと速く')):'レベル'+(lv+1)};
 }
@@ -137,7 +144,7 @@ let rise=0,sandT=0,stageT=0,bannerT=0,clearT=0,guideMode=null,ghost=null,ghostPu
 try{best=+localStorage.getItem('mcPonPonBest')||0}catch(e){}
 const floorY=()=>FLOOR-rise*RISE;
 const guideOn=()=>guideMode===null?stageN<=2:guideMode;
-let shots=0,lastItemShot=0;
+let shots=0,lastItemShot=0,shakeT=0;
 
 /* ---------- 絵柄(仮) ---------- */
 // 色を明るく(+)・暗く(-)する
@@ -145,6 +152,7 @@ function shade(hex,amt){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255
   const t=amt<0?0:255,p=Math.abs(amt);r=Math.round(r+(t-r)*p);g=Math.round(g+(t-g)*p);b=Math.round(b+(t-b)*p);return`rgb(${r},${g},${b})`;}
 // 立体的なガラス玉: 下地の球 → 絵柄 → 陰影 → 照り返し → ハイライト
 function drawKind(c,k,r){
+  if(k===CRATE){drawCrate(c,r,2);return;}
   c.save();
   c.beginPath();c.arc(0,0,r,0,Math.PI*2);c.clip();
   const bg=KINDS[k].bg,base=c.createRadialGradient(-r*.35,-r*.4,r*.05,0,0,r);
@@ -155,6 +163,7 @@ function drawKind(c,k,r){
   if(img&&img.complete&&img.naturalWidth){ // 写真の玉(写真を渡されたらここで使う)
     const sz=Math.min(img.naturalWidth,img.naturalHeight);
     c.drawImage(img,(img.naturalWidth-sz)/2,(img.naturalHeight-sz)/2,sz,sz,-r,-r,r*2,r*2);
+    c.restore();c.save();c.lineWidth=r*.2;c.strokeStyle=KINDS[k].bg;c.beginPath();c.arc(0,0,r*.92,0,7);c.stroke();
   }else drawIcon(c,k,r);
   c.restore();
   // 球の陰(ふちほど暗く)
@@ -177,7 +186,31 @@ function drawKind(c,k,r){
   // ふちの線
   c.lineWidth=r*.06;c.strokeStyle='rgba(0,0,0,.35)';c.beginPath();c.arc(0,0,r-r*.03,0,7);c.stroke();
 }
+function drawCrate(c,r,hp){
+  const s=r*.94;c.save();
+  const g=c.createLinearGradient(-s,-s,s,s);g.addColorStop(0,'#D9A066');g.addColorStop(1,'#8A5526');
+  c.fillStyle=g;c.beginPath();c.roundRect?c.roundRect(-s,-s,s*2,s*2,r*.22):c.rect(-s,-s,s*2,s*2);c.fill();
+  c.strokeStyle='#5E3714';c.lineWidth=r*.12;c.stroke();
+  c.strokeStyle='rgba(94,55,20,.55)';c.lineWidth=r*.06;
+  [-.33,.33].forEach(y=>{c.beginPath();c.moveTo(-s,y*s);c.lineTo(s,y*s);c.stroke();});
+  c.strokeStyle='#6E4219';c.lineWidth=r*.16;c.beginPath();c.moveTo(-s*.8,-s*.8);c.lineTo(s*.8,s*.8);c.stroke();
+  c.fillStyle='#3B2410';[[-.75,-.75],[.75,-.75],[-.75,.75],[.75,.75]].forEach(([x,y])=>{c.beginPath();c.arc(x*s,y*s,r*.07,0,7);c.fill();});
+  c.fillStyle='rgba(255,255,255,.25)';c.fillRect(-s*.85,-s*.88,s*1.2,s*.12);
+  if(hp<2){c.strokeStyle='#2A1608';c.lineWidth=r*.09;c.lineJoin='round';c.beginPath();
+    c.moveTo(-s*.1,-s);c.lineTo(s*.12,-s*.45);c.lineTo(-s*.15,-s*.05);c.lineTo(s*.2,s*.35);c.lineTo(s*.05,s);
+    c.moveTo(s*.12,-s*.45);c.lineTo(s*.6,-s*.3);c.moveTo(-s*.15,-s*.05);c.lineTo(-s*.6,s*.15);c.stroke();}
+  c.restore();
+}
 function drawIcon(c,k,r){
+  if(k===BOMB){c.fillStyle='#14161C';c.beginPath();c.arc(0,r*.08,r*.58,0,7);c.fill();
+    c.fillStyle='#555B66';c.fillRect(-r*.16,-r*.62,r*.32,r*.2);
+    c.strokeStyle='#C9A76A';c.lineWidth=r*.09;c.beginPath();c.moveTo(0,-r*.6);c.quadraticCurveTo(r*.2,-r*.85,r*.42,-r*.7);c.stroke();
+    c.fillStyle='#FFE36E';c.beginPath();for(let j=0;j<10;j++){const a=j*Math.PI/5,rr=j%2?r*.08:r*.2;c.lineTo(r*.45+Math.cos(a)*rr,-r*.72+Math.sin(a)*rr);}c.fill();
+    c.fillStyle='rgba(255,255,255,.35)';c.beginPath();c.arc(-r*.2,-r*.1,r*.14,0,7);c.fill();return;}
+  if(k===TREAT){c.fillStyle='#B5743A';c.beginPath();c.arc(0,0,r*.6,0,7);c.fill();
+    c.strokeStyle='#8A5223';c.lineWidth=r*.06;c.stroke();
+    c.fillStyle='#4A2810';[[-.25,-.2],[.2,-.3],[.3,.15],[-.1,.25],[-.35,.15],[.05,-.02]].forEach(([x,y])=>{c.beginPath();c.ellipse(x*r,y*r,r*.08,r*.06,x,0,7);c.fill();});return;}
+
   c.scale(.92,.92);
   const eye=(x,y,s)=>{c.fillStyle='#1B1B1B';c.beginPath();c.arc(x,y,s,0,7);c.fill();c.fillStyle='#fff';c.beginPath();c.arc(x+s*.35,y-s*.35,s*.38,0,7);c.fill();};
   if(k===0){ // コロン(ポメプー・茶)
@@ -231,6 +264,7 @@ function buildSprites(){
   const mk=f=>{const o=document.createElement('canvas');o.width=o.height=px;const c=o.getContext('2d');c.translate(px/2,px/2);c.scale(scale*dpr,scale*dpr);f(c);return o;};
   sprites=KINDS.map((_,k)=>mk(c=>drawKind(c,k,BR)));
   sprites.ice=mk(c=>drawIce(c,BR));
+  sprites.crate1=mk(c=>drawCrate(c,BR,1));
 }
 function drawNext(){nctx.clearRect(0,0,56,56);nctx.save();nctx.translate(28,28);drawKind(nctx,nextKind,25);nctx.restore();}
 
@@ -277,23 +311,28 @@ function dropHit(x,y){
 function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function makeGrid(d,seed){
   const rand=rng(seed),g=[];
-  const stones=new Set();while(stones.size<d.stones)stones.add(Math.floor(rand()*d.rows)*9+Math.floor(rand()*COLS));
+  const special=new Map();
+  const place=(n,what,minRow)=>{let t=0;while(n>0&&t++<200){const r=minRow+Math.floor(rand()*Math.max(1,d.rows-minRow)),i=Math.floor(rand()*COLS),kk=r*9+i;if(r<d.rows&&!special.has(kk)){special.set(kk,what);n--;}}};
+  place(d.stones,'stone',0);place(d.crates||0,'crate',0);place(d.treats||0,'treat',Math.floor(d.rows/2));place(d.cham||0,'cham',0);
   const at=(r,i)=>g[r]&&g[r][i];
   const groupSize=(r,i,k)=>{const seen=new Set([r*9+i]),q=[[r,i]];
     for(let j=0;j<q.length;j++)for(const [nr,ni] of nbrs(...q[j])){const n=at(nr,ni);if(n&&n.k===k&&!seen.has(nr*9+ni)){seen.add(nr*9+ni);q.push([nr,ni]);}}
     return q.length;};
   for(let r=0;r<d.rows;r++){g.push([]);for(let i=0;i<COLS;i++){
-    if(stones.has(r*9+i)){g[r].push({k:STONE,ice:false});continue;}
+    const sp=special.get(r*9+i);
+    if(sp==='stone'){g[r].push({k:STONE,ice:false});continue;}
+    if(sp==='crate'){g[r].push({k:CRATE,ice:false});continue;}
+    if(sp==='treat'){g[r].push({k:TREAT,ice:false});continue;}
     const order=[...Array(d.colors).keys()].sort(()=>rand()-.5);
     let pick=order[0],bestSz=99;
     for(const k of order){const sz=groupSize(r,i,k);if(sz<bestSz){bestSz=sz;pick=k;}if(sz<3)break;}
-    g[r].push({k:pick,ice:rand()<d.ice});
+    g[r].push({k:pick,ice:sp!=='cham'&&rand()<d.ice,cham:sp==='cham'});
   }}
   return g;
 }
 function fillGrid(g,targets){
   grid=new Map();
-  g.forEach((row,r)=>row.forEach((c,i)=>{const p=cellXY(r,i);grid.set(key(r,i),{kind:c.k,ice:c.ice,target:targets&&c.k!==STONE,r,i,x:p.x,y:p.y});}));
+  g.forEach((row,r)=>row.forEach((c,i)=>{const p=cellXY(r,i);grid.set(key(r,i),{kind:c.k,ice:c.ice,cham:!!c.cham,hp:c.k===CRATE?2:0,target:targets&&isPic(c.k),r,i,x:p.x,y:p.y});}));
 }
 function loadStage(n){
   stageN=n;def=stageDef(n);$stageNo.textContent=n;
@@ -303,10 +342,10 @@ function loadStage(n){
   shot=null;nextKind=pickKind();spawnReady();state='play';
 }
 const presentKinds=()=>{const s=new Set();grid.forEach(b=>{if(b.target)s.add(b.kind);});return[...s];};
-function rollNext(){shots++;if(shots-lastItemShot>=6&&grid.size>6&&Math.random()<.16){lastItemShot=shots;return ITEM;}return pickKind();}
+function rollNext(){shots++;if(shots-lastItemShot>=6&&grid.size>6&&Math.random()<.18){lastItemShot=shots;return def.lv>=1&&Math.random()<.5?BOMB:ITEM;}return pickKind();}
 function pickKind(){const p=presentKinds();return p.length?p[Math.floor(Math.random()*p.length)]:0;}
 function spawnReady(){
-  const p=presentKinds();if(nextKind!==ITEM&&p.length&&!p.includes(nextKind))nextKind=pickKind();
+  const p=presentKinds();if(!isShotItem(nextKind)&&p.length&&!p.includes(nextKind))nextKind=pickKind();
   shot={x:LANE_X,y:FLOOR-BR,vx:0,vy:0,r:BR,kind:nextKind,phase:'ready',inField:false,acc:0};
   nextKind=rollNext();drawNext();
 }
@@ -357,15 +396,17 @@ function predict(p){
 function landShot(){
   const c=nearestEmpty(gridHas,shot.x,shot.y);
   combo=0;
-  if(shot.kind===ITEM){useItem(c,shot);shot=null;settling=true;spawnReady();return;}
-  grid.set(key(c[0],c[1]),{kind:shot.kind,ice:false,target:false,r:c[0],i:c[1],x:shot.x,y:shot.y});
-  nbrs(c[0],c[1]).forEach(([a,b])=>{const n=grid.get(valid(a,b)?key(a,b):-1);if(n&&n.ice)crack(n);});
+  if(shot.kind===ITEM||shot.kind===BOMB){(shot.kind===ITEM?useItem:useBomb)(c,shot);shot=null;settling=true;spawnReady();return;}
+  grid.set(key(c[0],c[1]),{kind:shot.kind,ice:false,cham:false,hp:0,target:false,r:c[0],i:c[1],x:shot.x,y:shot.y});
+  nbrs(c[0],c[1]).forEach(([a,b])=>{const n=grid.get(valid(a,b)?key(a,b):-1);if(!n)return;if(n.ice)crack(n);else if(n.kind===CRATE)hitCrate(n);});
+  // カメレオン玉は1発ごとに絵が変わる
+  grid.forEach(b=>{if(b.cham){b.kind=(b.kind+1)%def.colors;b.flash=.25;}});
   sfx.land();shot=null;settling=true;spawnReady();
 }
 // まほう玉: 落ちた所でいちばん近い玉と同じ絵を、画面じゅうから全部消す
 function useItem(c,s){
   const p=cellXY(c[0],c[1]);let pick=null,bd=1e9;
-  grid.forEach(b=>{if(b.kind===STONE)return;const q=cellXY(b.r,b.i),d=(q.x-p.x)**2+(q.y-p.y)**2;if(d<bd){bd=d;pick=b.kind;}});
+  grid.forEach(b=>{if(!isPic(b.kind))return;const q=cellXY(b.r,b.i),d=(q.x-p.x)**2+(q.y-p.y)**2;if(d<bd){bd=d;pick=b.kind;}});
   popping.push({kind:ITEM,x:s.x,y:s.y,pop:.001});
   if(pick===null){sfx.item();return;}
   let n=0,cx=0,cy=0;
@@ -373,13 +414,24 @@ function useItem(c,s){
   const pts=n*30;score+=pts;$score.textContent=score;sfx.item();
   texts.push({x:n?cx/n:p.x,y:n?cy/n:p.y,t:0,s:'+'+pts,chain:KINDS[pick].name+'ぜんぶ消し！'});
 }
+function removeBall(b){if(!grid.has(key(b.r,b.i)))return;grid.delete(key(b.r,b.i));b.pop=.001;popping.push(b);}
+function hitCrate(b){b.hp--;sfx.thud();if(b.hp<=0){removeBall(b);texts.push({x:b.x,y:b.y-10,t:0,s:'バキッ！',small:true});score+=20;$score.textContent=score;}else texts.push({x:b.x,y:b.y-10,t:0,s:'ゴン',small:true});}
+function eatTreat(b){removeBall(b);sandT=def.sand;score+=50;$score.textContent=score;sfx.treat();texts.push({x:b.x,y:b.y,t:0,s:'+50',chain:'おやつ！砂時計もどる'});}
+// ボム: 落ちた所のまわり2マスくらいを全部こわす(石・木箱も)
+function useBomb(c,s){
+  const p=cellXY(c[0],c[1]);let n=0;
+  popping.push({kind:BOMB,x:s.x,y:s.y,pop:.001});
+  [...grid.values()].forEach(b=>{const q=cellXY(b.r,b.i);if((q.x-p.x)**2+(q.y-p.y)**2<(BR*2*1.8)**2){if(b.kind===TREAT)eatTreat(b);else{removeBall(b);n++;}}});
+  score+=n*20;$score.textContent=score;sfx.bomb();shakeT=.35;
+  texts.push({x:p.x,y:p.y,t:0,s:'+'+n*20,chain:'ドカーン！'});
+}
 function crack(b){if(!b.ice)return;b.ice=false;sfx.crack();texts.push({x:b.x,y:b.y-10,t:0,s:'パリン！',small:true});}
 
 /* ---------- そろい判定 ---------- */
 function findGroups(){
   const seen=new Set(),groups=[];
   grid.forEach(s=>{
-    if(seen.has(s)||s.ice||s.kind===STONE)return;
+    if(seen.has(s)||s.ice||!isPic(s.kind))return;
     const grp=[s];seen.add(s);
     for(let j=0;j<grp.length;j++)for(const [a,b] of nbrs(grp[j].r,grp[j].i)){
       const n=valid(a,b)&&grid.get(key(a,b));if(n&&!seen.has(n)&&!n.ice&&n.kind===s.kind){seen.add(n);grp.push(n);}}
@@ -387,12 +439,14 @@ function findGroups(){
   });
   if(!groups.length)return;
   combo++;sfx.pop(combo);
+  const touched=new Set();
   groups.forEach(grp=>{
     let pts=(grp.length*10+(grp.length-3)*20)*combo,cx=0,cy=0;
     grp.forEach(b=>{cx+=b.x;cy+=b.y;});
     grp.forEach(b=>{if(!grid.has(key(b.r,b.i)))return;grid.delete(key(b.r,b.i));b.pop=.001;popping.push(b);
       nbrs(b.r,b.i).forEach(([a,c])=>{const n=valid(a,c)&&grid.get(key(a,c));if(!n)return;
-        if(n.kind===STONE){grid.delete(key(a,c));n.pop=.001;popping.push(n);pts+=5;}else if(n.ice)crack(n);});});
+        if(touched.has(n))return;touched.add(n);
+        if(n.kind===STONE){removeBall(n);pts+=5;}else if(n.kind===CRATE)hitCrate(n);else if(n.kind===TREAT)eatTreat(n);else if(n.ice)crack(n);});});
     score+=pts;$score.textContent=score;
     texts.push({x:cx/grp.length,y:cy/grp.length,t:0,s:'+'+pts,chain:combo>1?combo+'れんさ！':''});
   });
@@ -401,7 +455,7 @@ function findGroups(){
 
 /* ---------- 進行 ---------- */
 function update(dt){
-  time+=dt;
+  time+=dt;shakeT=Math.max(0,shakeT-dt);grid.forEach(b=>{if(b.flash)b.flash=Math.max(0,b.flash-dt);});
   texts.forEach(t=>t.t+=dt);texts=texts.filter(t=>t.t<1.3);
   let moving=false;
   grid.forEach(b=>{const p=cellXY(b.r,b.i),f=Math.min(1,dt*16);b.x+=(p.x-b.x)*f;b.y+=(p.y-b.y)*f;if(Math.abs(p.y-b.y)>1.5||Math.abs(p.x-b.x)>1.5)moving=true;});
@@ -464,13 +518,15 @@ function txt(s,x,y,size,col,align){ctx.font=size+'px "Mochiy Pop One","M PLUS Ro
   ctx.lineWidth=size*.28;ctx.strokeStyle='#0A1F29';ctx.lineJoin='round';ctx.strokeText(s,x,y);ctx.fillStyle=col||'#FFF7E8';ctx.fillText(s,x,y);}
 function drawBall(b,px){
   let s=1,a=1;if(b.pop){s=1+b.pop*1.6;a=Math.max(0,1-b.pop/.3);}
-  ctx.globalAlpha=a;ctx.drawImage(sprites[b.kind],b.x-px*s/2,b.y-px*s/2,px*s,px*s);
+  if(b.flash)s*=1+b.flash*.6;
+  ctx.globalAlpha=a;ctx.drawImage(b.kind===CRATE&&b.hp===1?sprites.crate1:sprites[b.kind],b.x-px*s/2,b.y-px*s/2,px*s,px*s);
+  if(b.cham&&!b.pop){ctx.save();ctx.lineWidth=3;ctx.strokeStyle=`hsl(${(time*240)%360},95%,65%)`;ctx.setLineDash([5,4]);ctx.lineDashOffset=-time*30;ctx.beginPath();ctx.arc(b.x,b.y,BR-1.5,0,7);ctx.stroke();ctx.restore();}
   if(b.ice)ctx.drawImage(sprites.ice,b.x-px*s/2,b.y-px*s/2,px*s,px*s);
   if(b.target&&!b.pop){ctx.fillStyle='#FFE36E';ctx.font='9px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('★',b.x+BR*.68,b.y-BR*.68);}
   ctx.globalAlpha=1;
 }
 function render(){
-  const k=scale*dpr;ctx.setTransform(k,0,0,k,0,0);
+  const k=scale*dpr,sx=shakeT>0?(Math.random()-.5)*shakeT*24:0,sy=shakeT>0?(Math.random()-.5)*shakeT*24:0;ctx.setTransform(k,0,0,k,sx*k,sy*k);
   ctx.fillStyle='#0A1F29';ctx.fillRect(0,0,W,H);
   tablePath(ctx);const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#1B5A70');g.addColorStop(1,'#0C2F3D');ctx.fillStyle=g;ctx.fill();
   ctx.fillStyle='rgba(255,255,255,.05)';paw(ctx,90,470,70,-.3);paw(ctx,230,330,50,.4);paw(ctx,150,100,40,-.1);
@@ -566,6 +622,11 @@ const sfx={
   clear(){const t=now();[[523,0],[659,.12],[784,.24],[1047,.36],[784,.52],[1047,.64]].forEach(([f,d])=>tone(f,t+d,.22,'square',.2));},
   over(){const t=now();[[392,0],[330,.2],[262,.4],[196,.6]].forEach(([f,d])=>tone(f,t+d,.3,'triangle',.25));},
 };
+Object.assign(sfx,{
+  thud(){const t=now();tone(140,t,.12,'square',.3,70);noise(t,.06,.2,400);},                   // 木箱「ゴン」
+  bomb(){const t=now();tone(90,t,.6,'sawtooth',.4,30);noise(t,.6,.5,80);noise(t,.2,.3,2000);}, // ボム「ドカーン」
+  treat(){const t=now();[784,988,1175,1568].forEach((f,i)=>tone(f,t+i*.06,.15,'triangle',.25));}, // おやつ
+});
 /* BGM: オリジナルの8小節ループ(ハ長調・のんびりお散歩テンポ) */
 const NOTE=n=>{if(n==='.'||n==='-')return 0;const m=n.match(/([A-G])(#?)(\d)/);return 440*Math.pow(2,(({C:-9,D:-7,E:-5,F:-4,G:-2,A:0,B:2})[m[1]]+(m[2]?1:0)+(m[3]-4)*12)/12);};
 const MEL=('E5 G5 A5 G5 E5 . D5 C5 | D5 E5 G5 E5 D5 - . . | E5 G5 A5 C6 A5 G5 E5 G5 | A5 - G5 - . . . . | '+
