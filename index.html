@@ -790,12 +790,22 @@ function spawnReady(){
 // よわく引いたとき(10まで)は必ず一番右。そこから先はゆるやかに強くなる
 const MIN_PULL=4,speedOf=p=>VMIN+Math.pow(Math.max(0,p-10)/(MAXPULL-10),1.2)*(VMAX-VMIN);
 // バネの上の玉が、盤面にない絵になったとき: パリンと割れて、ちがう絵の玉が出てくる
+// うかぶ文字: 近くの文字と重ならないように上へずらし、ゆっくり消す
+const textLife=t=>t.small?1.4:2.3;
+function addText(o){
+  const h=o.chain?44:24,minX=L+70,maxX=DIV-DIVW-70;o.x=Math.max(minX,Math.min(maxX,o.x));
+  for(let tries=0;tries<8;tries++){
+    const hit=texts.find(t=>{const ty=t.y-Math.max(0,t.t)*(t.small?30:14),th=t.chain?44:24;return Math.abs(t.x-o.x)<120&&Math.abs(ty-o.y)<(h+th)/2+4;});
+    if(!hit)break;o.y=hit.y-Math.max(0,hit.t)*(hit.small?30:14)-((hit.chain?44:24)+h)/2-6;
+  }
+  if(o.y<70)o.y=70;texts.push(o);if(texts.length>8)texts.splice(0,texts.length-8);
+}
 let shards=[];
 function swapShot(k){
   const x=shot.x,y=shot.y,col=KINDS[shot.kind].bg;
   popping.push({kind:shot.kind,x,y,pop:.001});
   for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,v=60+Math.random()*140;shards.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-80,r:Math.random()*6.3,s:2+Math.random()*3.5,t:0,c:i%3?col:'#FFFFFF'});}
-  sfx.shatter();texts.push({x:x-6,y:y-BR-14,t:0,s:'パリン！',small:true});
+  sfx.shatter();addText({x:x-6,y:y-BR-14,t:0,s:'パリン！',small:true});
   shot.kind=k;shot.appear=-.15;
 }
 function launch(){
@@ -868,21 +878,21 @@ function useItem(c,s){
   let n=0,cx=0,cy=0;
   [...grid.values()].forEach(b=>{if(b.kind!==pick)return;cleared++;grid.delete(key(b.r,b.i));b.pop=.001;popping.push(b);n++;cx+=b.x;cy+=b.y;});
   const pts=n*30;score+=pts;$score.textContent=score;sfx.item();
-  texts.push({x:n?cx/n:p.x,y:n?cy/n:p.y,t:0,s:'+'+pts,chain:KINDS[pick].name+'ぜんぶ消し！'});
+  addText({x:n?cx/n:p.x,y:n?cy/n:p.y,t:0,s:'+'+pts,chain:KINDS[pick].name+'ぜんぶ消し！'});
 }
 function removeBall(b){if(!grid.has(key(b.r,b.i)))return;if(isPic(b.kind))cleared++;grid.delete(key(b.r,b.i));b.pop=.001;popping.push(b);}
-function hitCrate(b){b.hp--;sfx.thud();if(b.hp<=0){removeBall(b);texts.push({x:b.x,y:b.y-10,t:0,s:'バキッ！',small:true});score+=20;$score.textContent=score;}else texts.push({x:b.x,y:b.y-10,t:0,s:'ゴン',small:true});}
-function eatTreat(b){removeBall(b);if(mode==='puzzle')risePause=6;else sandT=mode==='normal'?curSand:def.sand;score+=50;$score.textContent=score;sfx.treat();texts.push({x:b.x,y:b.y,t:0,s:'+50',chain:mode==='puzzle'?'おやつ！せり上がりストップ':'おやつ！砂時計もどる'});}
+function hitCrate(b){b.hp--;sfx.thud();if(b.hp<=0){removeBall(b);addText({x:b.x,y:b.y-10,t:0,s:'バキッ！',small:true});score+=20;$score.textContent=score;}else addText({x:b.x,y:b.y-10,t:0,s:'ゴン',small:true});}
+function eatTreat(b){removeBall(b);if(mode==='puzzle')risePause=6;else sandT=mode==='normal'?curSand:def.sand;score+=50;$score.textContent=score;sfx.treat();addText({x:b.x,y:b.y,t:0,s:'+50',chain:mode==='puzzle'?'おやつ！せり上がりストップ':'おやつ！砂時計もどる'});}
 // ボム: 落ちた所のまわり2マスくらいを全部こわす(石・木箱も)
 function useBomb(c,s){
   const p=cellXY(c[0],c[1]);let n=0;
   popping.push({kind:BOMB,x:s.x,y:s.y,pop:.001});
   [...grid.values()].forEach(b=>{const q=cellXY(b.r,b.i);if((q.x-p.x)**2+(q.y-p.y)**2<(BR*2*1.8)**2){if(b.kind===TREAT)eatTreat(b);else{removeBall(b);n++;}}});
   score+=n*20;$score.textContent=score;sfx.bomb();setTimeout(()=>voice('bomb'),120);shakeT=.35;
-  texts.push({x:p.x,y:p.y,t:0,s:'+'+n*20,chain:'ドカーン！'});
+  addText({x:p.x,y:p.y,t:0,s:'+'+n*20,chain:'ドカーン！'});
   maybeDrop(p.x,p.y,n>=8?.02:n>=6?.01:0);/* ボムでたくさんこわしたときだけ */
 }
-function crack(b){if(!b.ice)return;b.ice=false;sfx.crack();texts.push({x:b.x,y:b.y-10,t:0,s:'パリン！',small:true});}
+function crack(b){if(!b.ice)return;b.ice=false;sfx.crack();addText({x:b.x,y:b.y-10,t:0,s:'パリン！',small:true});}
 
 /* ---------- 迷子札(やりこみ要素。ゲームの勝ち負けには関係なし) ---------- */
 const TAGS=[
@@ -917,7 +927,7 @@ function rollTag(){
   // 同じレア度の中は完全にランダム(持っている札も何枚でもかぶる)
   return pool[Math.floor(Math.random()*pool.length)];
 }
-function giveTag(id){const o=loadTags(),isNew=!o[id];if(isNew&&Object.keys(o).length===TAGS.length-1)setTimeout(()=>{texts.push({x:(L+DIV)/2,y:300,t:-.8,s:'迷子札図鑑コンプリート！',chain:'図鑑がゴージャスになったよ'});sfx.clear();},900);o[id]={c:((o[id]&&o[id].c)||0)+1,f:(o[id]&&o[id].f)||new Date().toLocaleDateString('ja-JP'),nw:isNew||(o[id]&&o[id].nw)};saveTags(o);return isNew;}
+function giveTag(id){const o=loadTags(),isNew=!o[id];if(isNew&&Object.keys(o).length===TAGS.length-1)setTimeout(()=>{addText({x:(L+DIV)/2,y:300,t:-.8,s:'迷子札図鑑コンプリート！',chain:'図鑑がゴージャスになったよ'});sfx.clear();},900);o[id]={c:((o[id]&&o[id].c)||0)+1,f:(o[id]&&o[id].f)||new Date().toLocaleDateString('ja-JP'),nw:isNew||(o[id]&&o[id].nw)};saveTags(o);return isNew;}
 // 玉を消した所から札がポンと出て、左上へ飛んでいく
 // 1回の連鎖(1発うつごと)で出る迷子札は1枚まで
 let chainDropped=false;
@@ -948,7 +958,7 @@ function findGroups(){
         if(touched.has(n))return;touched.add(n);
         if(n.kind===STONE){removeBall(n);pts+=5;}else if(n.kind===CRATE)hitCrate(n);else if(n.kind===TREAT)eatTreat(n);else if(n.ice)crack(n);});});
     score+=pts;$score.textContent=score;
-    texts.push({x:cx/grp.length,y:cy/grp.length,t:0,s:'+'+pts,chain:combo>1?combo+'れんさ！':''});
+    addText({x:cx/grp.length,y:cy/grp.length,t:0,s:'+'+pts,chain:combo>1?combo+'れんさ！':''});
     // 迷子札は2連鎖以上か、5個以上いっぺんに消したときだけ
     const big=grp.length>=7?.04:grp.length>=6?.02:grp.length>=5?.01:0,ch=combo>=4?.06:combo===3?.03:combo===2?.01:0;
     maybeDrop(cx/grp.length,cy/grp.length,Math.max(big,ch));
@@ -959,7 +969,7 @@ function findGroups(){
 /* ---------- 進行 ---------- */
 function update(dt){
   time+=dt;shakeT=Math.max(0,shakeT-dt);grid.forEach(b=>{if(b.flash)b.flash=Math.max(0,b.flash-dt);});
-  texts.forEach(t=>t.t+=dt);texts=texts.filter(t=>t.t<1.3);
+  texts.forEach(t=>t.t+=dt);texts=texts.filter(t=>t.t<textLife(t));
   shards.forEach(p=>{p.t+=dt;p.vy+=900*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=dt*8;});shards=shards.filter(p=>p.t<.7);if(shot&&shot.appear!=null){shot.appear+=dt;if(shot.appear>.5)shot.appear=null;}
   drops.forEach(d=>d.t+=dt);drops=drops.filter(d=>d.t<2.2);
   let moving=false;
@@ -1006,11 +1016,11 @@ function update(dt){
   // 砂時計 → 床がせり上がる(標準・エキスパート)
   else sandT-=dt;
   if(mode!=='puzzle'&&sandT<=0){
-    {if(mode==='normal')curSand=Math.max(def.sandMin,curSand*.88);sandT=mode==='normal'?curSand:def.sand;rise++;grid.forEach(b=>b.y-=RISE);sfx.rise();texts.push({x:158,y:floorY()-40,t:0,s:'せりあがり！',small:true});}}
+    {if(mode==='normal')curSand=Math.max(def.sandMin,curSand*.88);sandT=mode==='normal'?curSand:def.sand;rise++;grid.forEach(b=>b.y-=RISE);sfx.rise();addText({x:158,y:floorY()-40,t:0,s:'せりあがり！',small:true});}}
   if(!busy&&(mode==='puzzle'?aboveGoal()===0&&stageT>1:(mode==='expert'&&cleared>=def.quota)||![...grid.values()].some(b=>isPic(b.kind)))){state='clearing';clearT=0;if(shot&&shot.phase==='ready')shot=null;
     // 残った石・木箱・おやつはおまけでこわれる(パズルモードは残りをボーナスに)
-    let n=0;if(mode==='normal')[...grid.values()].forEach(b=>{removeBall(b);n++;});if(n){score+=n*10;$score.textContent=score;sfx.item();texts.push({x:(L+DIV)/2,y:FLOOR-80,t:0,s:'+'+n*10,chain:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
-    else texts.push({x:(L+DIV)/2,y:FLOOR-80,t:0,s:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
+    let n=0;if(mode==='normal')[...grid.values()].forEach(b=>{removeBall(b);n++;});if(n){score+=n*10;$score.textContent=score;sfx.item();addText({x:(L+DIV)/2,y:FLOOR-80,t:0,s:'+'+n*10,chain:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
+    else addText({x:(L+DIV)/2,y:FLOOR-80,t:0,s:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
   // ピンチの判定: 一番上の玉と点線のあいだが何段ぶんあるか
   if(state==='play'&&grid.size){let top=1e9;grid.forEach(b=>{const y=cellXY(b.r,b.i).y-BR;if(y<top)top=y;});
     const rowsLeft=(top-DANGER)/ROW_H;
@@ -1191,8 +1201,10 @@ function render(){
     if(d.t<1.1){ctx.globalAlpha=Math.min(1,(1.1-d.t)*3);txt((d.isNew?'NEW! ':'')+'迷子札ゲット！',d.x,d.y-58,13,d.isNew?'#FF9FC0':'#FFE36E');
       txt(T.n+(T.r?'（'+RARE_NAME[T.r]+'）':''),d.x,d.y-40,10,'#FFFFFF');ctx.globalAlpha=1;}}
   for(const p of shards){ctx.save();ctx.globalAlpha=Math.max(0,1-p.t/.7);ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.beginPath();ctx.moveTo(0,-p.s);ctx.lineTo(p.s*.8,p.s*.6);ctx.lineTo(-p.s*.7,p.s*.5);ctx.closePath();ctx.fill();ctx.restore();}
-  for(const t of texts){ctx.globalAlpha=Math.max(0,1-t.t/1.3);const y=t.y-t.t*40;
-    txt(t.s,t.x,y,t.small?13:18);if(t.chain)txt(t.chain,t.x,y-22,15,'#FF9FC0');ctx.globalAlpha=1;}
+  for(const t of texts){const life=textLife(t),k=Math.max(0,t.t);
+    // 出るときはポンと大きく、消えるときはゆっくりうすく
+    const a=k<.15?k/.15:Math.min(1,(life-k)/.7);ctx.globalAlpha=Math.max(0,a);const y=t.y-k*(t.small?30:14),pop=k<.15?.8+k/.15*.2:1;
+    txt(t.s,t.x,y,(t.small?13:18)*pop);if(t.chain)txt(t.chain,t.x,y-22,15*pop,'#FF9FC0');ctx.globalAlpha=1;}
   if(state==='play'&&dangerT>0&&Math.sin(time*14)>-.4){txt('あぶない！ 消して！ '+Math.max(1,Math.ceil(3-dangerT)),(L+DIV)/2,DANGER-40,16,'#FF6B6B');}
   if(state==='play'&&readyT>0){ctx.save();ctx.fillStyle='rgba(10,31,41,.35)';ctx.fillRect(0,0,W,H);ctx.restore();
     const k=1;txt('よーい…',(L+DIV)/2,452,30*k,'#FFE36E');}
