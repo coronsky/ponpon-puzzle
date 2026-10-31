@@ -789,7 +789,7 @@ function fillGrid(g,targets){
 }
 function loadStage(n){
   readyT=9;goT=0;{let tries=0;const go=()=>{const ok=VCLIPS.start.every(k=>vbuf[k]&&vbuf[k]!=='loading')||VCLIPS.start.some(k=>vbuf[k]===null);if(!ok&&tries++<15){setTimeout(go,100);return;}sfx.ready();const c=voice('start',mode==='normal'&&n===30?VOICE.last:pick(VOICE.start));readyT=c?Math.max(.6,GO_AT[c]||1):1.6;};setTimeout(go,150);}bgm.next();stageN=n;par=0;cleared=0;riseOff=0;risePause=0;incoming=null;def=stageDef(n);$stageNo.textContent=n;applyTheme(def.theme!=null?def.theme:def.lv%THEMES.length);
-  popping=[];texts=[];combo=0;dangerT=0;pull=0;dragging=false;rise=0;curSand=def.sand;sandT=mode==='puzzle'?def.push:def.sand;stageT=0;bannerT=0;clearT=0;ghost=null;ghostPull=-1;settling=false;
+  popping=[];texts=[];chainBanner=null;combo=0;dangerT=0;pull=0;dragging=false;rise=0;curSand=def.sand;sandT=mode==='puzzle'?def.push:def.sand;stageT=0;bannerT=0;clearT=0;ghost=null;ghostPull=-1;settling=false;
   fillGrid(makeGrid(def,mode==='expert'?Math.floor(Math.random()*1e9):n*7919+13),true);/* 標準・パズルはステージごとに固定、エキスパートは毎回ランダム */
   stageStartScore=score;updateGuideBtn();shots=0;lastItemShot=0;
   shot=null;nextKind=pickKind();spawnReady();state='play';
@@ -946,7 +946,7 @@ function rollTag(){
 function giveTag(id){const o=loadTags(),isNew=!o[id];if(isNew&&Object.keys(o).length===TAGS.length-1)setTimeout(()=>{addText({x:(L+DIV)/2,y:300,t:-.8,s:'迷子札図鑑コンプリート！',chain:'図鑑がゴージャスになったよ'});sfx.clear();},900);o[id]={c:((o[id]&&o[id].c)||0)+1,f:(o[id]&&o[id].f)||new Date().toLocaleDateString('ja-JP'),nw:isNew||(o[id]&&o[id].nw)};saveTags(o);return isNew;}
 // 玉を消した所から札がポンと出て、左上へ飛んでいく
 // 1回の連鎖(1発うつごと)で出る迷子札は1枚まで
-let chainDropped=false;
+let chainDropped=false,chainBanner=null;
 function maybeDrop(x,y,chance){
   if(chainDropped||chance<=0||Math.random()>=chance)return;
   chainDropped=true;
@@ -965,7 +965,7 @@ function findGroups(){
   });
   if(!groups.length)return;
   combo++;sfx.pop(combo);if(combo===2)voice('chain2');else if(combo===3||combo===5)voice('chain3');
-  const touched=new Set();
+  const touched=new Set();let stepPts=0,sx=0,sy=0,sn=0;
   groups.forEach(grp=>{
     let pts=(grp.length*10+(grp.length-3)*20)*combo,cx=0,cy=0;
     grp.forEach(b=>{cx+=b.x;cy+=b.y;});
@@ -973,18 +973,20 @@ function findGroups(){
       nbrs(b.r,b.i).forEach(([a,c])=>{const n=valid(a,c)&&grid.get(key(a,c));if(!n)return;
         if(touched.has(n))return;touched.add(n);
         if(n.kind===STONE){removeBall(n);pts+=5;}else if(n.kind===CRATE)hitCrate(n);else if(n.kind===TREAT)eatTreat(n);else if(n.ice)crack(n);});});
-    score+=pts;$score.textContent=score;
-    addText({x:cx/grp.length,y:cy/grp.length,t:0,s:'+'+pts,chain:combo>1?combo+'れんさ！':''});
+    score+=pts;$score.textContent=score;stepPts+=pts;sx+=cx;sy+=cy;sn+=grp.length;
     // 迷子札は2連鎖以上か、5個以上いっぺんに消したときだけ
     const big=grp.length>=7?.04:grp.length>=6?.02:grp.length>=5?.01:0,ch=combo>=4?.06:combo===3?.03:combo===2?.01:0;
     maybeDrop(cx/grp.length,cy/grp.length,Math.max(big,ch));
   });
+  addText({x:sx/sn,y:sy/sn,t:0,s:'+'+stepPts});
+  if(combo>1)chainBanner={n:combo,t:0};
   settling=true;
 }
 
 /* ---------- 進行 ---------- */
 function update(dt){
   time+=dt;shakeT=Math.max(0,shakeT-dt);grid.forEach(b=>{if(b.flash)b.flash=Math.max(0,b.flash-dt);});
+  if(chainBanner){chainBanner.t+=dt;if(chainBanner.t>1.6)chainBanner=null;}
   texts.forEach(t=>t.t+=dt);texts=texts.filter(t=>t.t<textLife(t));
   shards.forEach(p=>{p.t+=dt;p.vy+=900*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=dt*8;});shards=shards.filter(p=>p.t<.7);if(shot&&shot.appear!=null){shot.appear+=dt;if(shot.appear>.5)shot.appear=null;}
   drops.forEach(d=>d.t+=dt);drops=drops.filter(d=>d.t<2.2);
@@ -1276,6 +1278,10 @@ function render(){
     // 出るときはポンと大きく、消えるときはゆっくりうすく
     const a=k<.15?k/.15:Math.min(1,(life-k)/.7);ctx.globalAlpha=Math.max(0,a);const y=t.y-k*(t.small?30:14),pop=k<.15?.8+k/.15*.2:1;
     txt(t.s,t.x,y,(t.small?13:18)*pop);if(t.chain)txt(t.chain,t.x,y-22,15*pop,'#FF9FC0');ctx.globalAlpha=1;}
+  // れんさ: 盤面の真ん中に大きく1つ。ポンと出て、ゆっくり消える
+  if(chainBanner){const k=chainBanner.t,a=k<.12?k/.12:Math.min(1,(1.6-k)/.6),sc=k<.12?.5+k/.12*.7:k<.25?1.2-(k-.12)/.13*.2:1;
+    ctx.save();ctx.globalAlpha=Math.max(0,a);ctx.translate((L+DIV-DIVW)/2,DANGER+(FLOOR-DANGER)*.32-k*8);ctx.scale(sc,sc);
+    txt(chainBanner.n+'れんさ！',0,0,Math.min(44,30+chainBanner.n*3),chainBanner.n>=4?'#FFD34D':'#FF9FC0');ctx.restore();}
   if(state==='play'&&dangerT>0&&Math.sin(time*14)>-.4){txt('あぶない！',(L+DIV)/2,DANGER-40,16,'#FF6B6B');}
   if(state==='play'&&readyT>0){ctx.save();ctx.fillStyle='rgba(10,31,41,.35)';ctx.fillRect(0,0,W,H);ctx.restore();
     const k=1;txt('よーい…',(L+DIV)/2,452,30*k,'#FFE36E');}
