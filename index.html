@@ -181,7 +181,7 @@ button.mode b em{font-style:normal;font-family:var(--f-body);font-weight:800;fon
 .zk-backup .row2{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 .zk-backup .row2 button{font-size:12.5px;padding:7px 12px}
 .zk-backup textarea{width:100%;box-sizing:border-box;font:12px/1.4 ui-monospace,Menlo,monospace;word-break:break-all;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(0,0,0,.25);color:var(--ink);padding:8px;resize:vertical;user-select:text;-webkit-user-select:text}
-.bk-code{width:100%;box-sizing:border-box;text-align:center;font:800 20px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;border-radius:10px;border:1.5px solid rgba(255,255,255,.35);background:rgba(0,0,0,.25);color:var(--ink);padding:8px;user-select:text;-webkit-user-select:text}
+.bk-code{width:100%;box-sizing:border-box;text-align:center;font:800 26px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;border-radius:10px;border:1.5px solid rgba(255,255,255,.35);background:rgba(0,0,0,.25);color:var(--ink);padding:8px;user-select:text;-webkit-user-select:text}
 .bk-in{display:flex;flex-direction:column;gap:8px;align-items:center}
 .bk-in button{font-size:13px;padding:8px 18px}
 .bk-msg{font-weight:800;color:#7FE0A8}
@@ -289,10 +289,10 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
       <p class="zk-hint">2連鎖以上や、5個以上いっぺんに消すと、ときどき迷子札が出てくるよ。レア・超レアは、ノーマルを全部集めたあたりから出はじめる…かも！</p>
       <div class="zk-backup">
         <h3>データの引きつぎ</h3>
-        <p>機種変更やブラウザを変えるときのために、「引きつぎコード」をメモ帳やLINEの自分あてなどに保存しておいてね。迷子札・ベストスコア・パズルのコースが戻せます。</p>
+        <p>機種変更やブラウザを変えるときのために、「引きつぎコード」をメモ帳やLINEの自分あてなどに保存しておいてね。迷子札とパズルのコースが戻せます(ベストスコアは入りません)。</p>
         <div class="row2"><button id="bkMake" class="sub" type="button">引きつぎコードをコピー</button><button id="bkOpen" class="sub" type="button">コードを入れて戻す</button></div>
         <input id="bkOut" class="bk-code" readonly aria-label="引きつぎコード" hidden>
-        <div id="bkIn" class="bk-in" hidden><input id="bkText" class="bk-code" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例: Ab3d-EF7h-Jk9m" aria-label="引きつぎコードを入れる"><button id="bkLoad" type="button">このコードで戻す</button></div>
+        <div id="bkIn" class="bk-in" hidden><input id="bkText" class="bk-code" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例: Ab3dE" aria-label="引きつぎコードを入れる"><button id="bkLoad" type="button">このコードで戻す</button></div>
         <p id="bkMsg" class="bk-msg" hidden></p>
       </div>
       <button id="zukanClose" class="sub small-close" type="button">とじる</button>
@@ -1616,6 +1616,19 @@ const B58='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const bkCheck=bits=>{let h=7;for(const c of bits)h=(h*31+(c==='1'?2:1))%65521;return (h&63).toString(2).padStart(6,'0');};
 const bkNum=(v,bits)=>{v=Math.max(0,Math.floor(v));let b=v.toString(2);const L=v?b.length:0;if(!v)b='';
   return L<15?L.toString(2).padStart(4,'0')+b:'1111'+L.toString(2).padStart(5,'0')+b;};
+// 5文字コード: 迷子札16種(16ビット)+パズルのコース(3)+標準クリア(1)+まちがい見つけ用(9) = 29ビットを、58文字で5けたに
+function bk5Check(v){let h=v>>>0;h=Math.imul(h^0x5bd1e995,0x27d4eb2d)>>>0;h^=h>>>15;h=Math.imul(h,0x165667b1)>>>0;h^=h>>>13;return h&511;}
+function make5(){
+  const o=loadTags();let v=0;for(let i=0;i<16;i++)if(o[i])v|=1<<i;
+  v+=Math.min(5,+lsGet('mcPonPonPuzzleTier')||0)*65536;if(lsGet('mcPonPonNormalClear')==='1')v+=524288;
+  let n=v*512+bk5Check(v),t='';for(let i=0;i<5;i++){t=B58[n%58]+t;n=Math.floor(n/58);}return t;
+}
+function read5(code){
+  let n=0;for(const ch of code){const i=B58.indexOf(ch);if(i<0)return null;n=n*58+i;}
+  if(n>=536870912)return null;const v=Math.floor(n/512);if(bk5Check(v)!==n%512)return null;
+  const tier=Math.floor(v/65536)%8,tags={};if(tier>5)return null;for(let i=0;i<16;i++)if(v&(1<<i))tags[i]={c:1};
+  return {v:1,tags,best:{},tier,nclear:v>=524288};
+}
 function makeShort(){
   const o=loadTags(),best=['normal','expert','puzzle'].map(m=>+lsGet('mcPonPonBest_'+m)||0),d5=best.every(v=>v%5===0);
   let bits='01';                                                   // しるし(版1)
@@ -1628,7 +1641,7 @@ function makeShort(){
   return t.match(/.{1,4}/g).join('-');
 }
 function readShort(code){
-  code=String(code||'').replace(/[\s\-ー－]/g,'');if(!code||code.length>24)return null;
+  code=String(code||'').replace(/[\s\-ー－]/g,'');if(code.length===5)return read5(code);if(!code||code.length>24)return null;
   let n=0n;for(const ch of code){const i=B58.indexOf(ch);if(i<0)return null;n=n*58n+BigInt(i);}
   let bits=n.toString(2);if(bits[0]!=='1')return null;bits=bits.slice(1);
   if(bits.length<35)return null;const body=bits.slice(0,-6);if(bkCheck(body)!==bits.slice(-6))return null;
@@ -1666,7 +1679,7 @@ function applyBackup(d){
 function bkMsg(t,err){const m=document.getElementById('bkMsg');m.textContent=t;m.classList.toggle('err',!!err);m.hidden=false;}
 function closeBackup(){['bkOut','bkIn','bkMsg'].forEach(id=>document.getElementById(id).hidden=true);document.getElementById('bkText').value='';}
 document.getElementById('bkMake').onclick=()=>{
-  const code=makeShort(),out=document.getElementById('bkOut');out.value=code;out.hidden=false;document.getElementById('bkIn').hidden=true;
+  const code=make5(),out=document.getElementById('bkOut');out.value=code;out.hidden=false;document.getElementById('bkIn').hidden=true;
   const n=Object.keys(loadTags()).length;
   const done=()=>bkMsg('コピーしました(迷子札 '+n+'種類)。メモ帳などに貼って保存してね');
   const fall=()=>{out.focus();out.select();try{if(document.execCommand('copy')){done();return;}}catch(e){}bkMsg('コードを長押しして全部コピーしてね');};
