@@ -1206,16 +1206,18 @@ function drawPlunger(top){
 }
 const CLASSIC_WALL=['wall-leaves','wall-hearts','wall-paws','wall-check','wall-night'].map(n=>{const im=new Image();im.src='classic/'+n+'.jpg';return im;});
 function classicPath(c){c.beginPath();c.moveTo(L,FLOOR+4);ARCH.forEach(p=>c.lineTo(p[0],p[1]));c.lineTo(R,FLOOR+4);c.closePath();}
+// わくの線: 線の内がわが、玉の当たる位置とぴったり合うように4ずつ外へ
+function classicFramePath(c){const o=4;c.beginPath();c.moveTo(L-o,FLOOR+4);ARCH.forEach(p=>{const dx=p[0]-ACX,dy=p[1]-SPRING,d=Math.hypot(dx,dy)||1;c.lineTo(p[0]+dx/d*o,p[1]+dy/d*o);});c.lineTo(R+o,FLOOR+4);c.closePath();}
 function drawClassicTable(front){
   if(!front){const wall=CLASSIC_WALL[Math.max(0,themeIdx)%CLASSIC_WALL.length];
     if(wall.complete&&wall.naturalWidth){const sc=Math.max(W/wall.naturalWidth,H/wall.naturalHeight),ww=wall.naturalWidth*sc,wh=wall.naturalHeight*sc;ctx.drawImage(wall,(W-ww)/2,(H-wh)/2,ww,wh);}
     else{const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#1B5A70');g.addColorStop(1,'#0C2F3D');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
     // わくの外は少し暗く、発射レーンにかげ
-    ctx.save();ctx.beginPath();ctx.rect(0,0,W,H);classicPath(ctx);ctx.fillStyle='rgba(0,0,0,.38)';ctx.fill('evenodd');ctx.restore();
+    ctx.save();ctx.beginPath();ctx.rect(0,0,W,H);classicFramePath(ctx);ctx.fillStyle='rgba(0,0,0,.38)';ctx.fill('evenodd');ctx.restore();
     ctx.fillStyle='rgba(0,0,0,.22)';ctx.fillRect(DIV,DIV_TOP,R-DIV,FLOOR-DIV_TOP+20);return;}
   ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#E9B44C';ctx.lineWidth=5;
   ctx.beginPath();ctx.moveTo(DIV,DIV_TOP);ctx.lineTo(DIV,FLOOR+4);ctx.stroke();
-  classicPath(ctx);ctx.lineWidth=8;ctx.stroke();ctx.restore();   // わくの下はこの1本だけ
+  classicFramePath(ctx);ctx.lineWidth=8;ctx.stroke();ctx.restore();   // わくの下はこの1本だけ
 }
 function drawClassicPlunger(top){
   ctx.save();ctx.beginPath();ctx.rect(DIV+3,DIV_TOP,R-DIV-6,FLOOR-DIV_TOP);ctx.clip();
@@ -1522,7 +1524,7 @@ function applyTheme(i){
   L=30;R=330;DIV=281.0;DIVW=7.0;DIV_TOP=212;FLOOR=580;SPRING=200;ARCH=TH.arch;ACX=(L+R)/2;
   }
   BR=Math.floor((((DIV-DIVW)-L)/(2*COLS+1)-.3)*10)/10;ROW_H=BR*Math.sqrt(3);RISE=ROW_H;
-  LANE_X=(DIV+DIVW+R)/2;DANGER=Math.max(DIV_TOP,SPRING)+BR*.6;
+  LANE_X=classic?((DIV+2.5)+R)/2:(DIV+DIVW+R)/2;DANGER=Math.max(DIV_TOP,SPRING)+BR*.6;
   {const top0=FLOOR-2*BR;DANGER=top0-Math.ceil((top0-DANGER)/ROW_H-1e-6)*ROW_H;} // 点線=いちばん上に置ける段の玉の上はし(面一)
   REST_Y=FLOOR-BR-24-PULL_VIS;
   calibrate();if(scale)buildSprites();
