@@ -230,7 +230,6 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
         <button class="mode" data-mode="expert" type="button"><b>エキスパートモード</b><span>最初から玉とおじゃまがたくさん。ノルマの数だけ消したらクリア</span></button>
         <button class="mode" data-mode="puzzle" type="button"><b>パズルモード</b><span>下から玉がせり上がってくる。ゴールラインより下まで減らしたらクリア</span></button>
       </div>
-      <button id="howBtn" class="linkbtn" type="button">▶ あそびかた</button>
       <div class="title-sub"><button id="zukanBtn" class="sub" type="button">迷子札図鑑</button><button id="aboutBtn" class="sub" type="button">ゲームについて</button></div>
     </div>
   </div>
@@ -1539,7 +1538,8 @@ document.getElementById('menuTopBtn').onclick=()=>{if(state!=='play'&&state!=='c
 document.getElementById('resumeBtn').onclick=()=>{hide('pauseOv');state=menuPrev||'play';audioInit();fixAudio(false);};
 document.getElementById('redoBtn').onclick=()=>{hide('pauseOv');score=stageStartScore;$score.textContent=score;loadStage(stageN);};
 document.getElementById('titleBtn').onclick=()=>{hide('pauseOv');saveBest();state='title';shot=null;ghost=null;document.getElementById('startOv').hidden=false;};
-document.getElementById('howBtn').onclick=()=>{hide('startOv');document.getElementById('howOv').hidden=false;document.querySelector('#howOv .card').scrollTop=0;};
+// タイトルの「あそびかた」はなし(「ゲームについて」の中にある)
+if(document.getElementById('howBtn'))document.getElementById('howBtn').onclick=()=>{hide('startOv');document.getElementById('howOv').hidden=false;document.querySelector('#howOv .card').scrollTop=0;};
 document.querySelectorAll('.xbtn,[data-close="howOv"]').forEach(b=>b.onclick=()=>{const id=b.dataset.close;
   if(id==='zukanOv'){document.getElementById('zukanClose').click();return;}
   if(id==='aboutOv'){document.getElementById('aboutClose').click();return;}
