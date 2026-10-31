@@ -1366,11 +1366,11 @@ const CNOTE=n=>{if(n==='.'||n==='-')return 0;const m=n.match(/([A-G])(#?)(\d)/);
 const CMEL=('E5 G5 A5 G5 E5 . D5 C5 | D5 E5 G5 E5 D5 - . . | E5 G5 A5 C6 A5 G5 E5 G5 | A5 - G5 - . . . . | '+
            'C5 D5 E5 G5 E5 D5 C5 D5 | E5 . A4 . C5 . D5 . | E5 G5 E5 D5 C5 D5 E5 G5 | C5 - - - . . . .').replace(/\|/g,'').trim().split(/\s+/);
 const CBASS=['C3','G2','A2','F2','C3','A2','F2','C3'],CFIFTH={C3:'G3',G2:'D3',A2:'E3',F2:'C3'};
-const chipBgm={on:false,step:0,next:0,timer:null,
-  start(){if(!AC||this.on)return;this.on=true;this.step=0;this.next=AC.currentTime+.1;this.tick();},
+const chipBgm={on:false,step:0,next:0,timer:null,fast:false,bpm:140,
+  start(){if(!AC||this.on)return;this.on=true;this.fast=false;this.bpm=140;this.step=0;this.next=AC.currentTime+.1;this.tick();},
   stop(){this.on=false;clearTimeout(this.timer);},
   tick(){
-    if(!this.on)return;const e=60/140/2;
+    if(!this.on)return;this.bpm+=((this.fast?205:140)-this.bpm)*.25;const e=60/this.bpm/2; // ピンチのときは速くなる
     while(this.next<AC.currentTime+.15){
       const s=this.step%64,t=this.next,n=CMEL[s];
       if(n!=='.'&&n!=='-'){let len=1;while(CMEL[(s+len)%64]==='-')len++;tone(CNOTE(n),t,e*len*.95,'square',.22,0,bgmBus);}
@@ -1422,7 +1422,10 @@ const music={cur:-1,src:null,g:null,bus:null,startedAt:0,failed:0,cache:{},panic
     let i=Math.floor(Math.random()*TRACKS.length);if(TRACKS.length>1&&i===this.cur)i=(i+1+Math.floor(Math.random()*(TRACKS.length-1)))%TRACKS.length;
     this.cur=i;this.panic=false;this.startIdx(i);},
   // ピンチ曲に切りかえ / ふだんの曲(さっきと同じ曲)に戻す
-  setPanic(on){if(classic||on===this.panic||!AC||!bgm.on||this.failed>=2)return;this.panic=on;
+  setPanic(on){
+    // クラシック版: ピンチ曲には切りかえず、ピコピコ曲のテンポを上げてあせらせる
+    if(classic){if(on===this.panic||!AC||!bgm.on)return;this.panic=on;chipBgm.fast=on;if(on){sfx.alarm();setTimeout(()=>voice('pinch'),500);}return;}
+    if(on===this.panic||!AC||!bgm.on||this.failed>=2)return;this.panic=on;
     if(on){sfx.alarm();setTimeout(()=>voice('pinch'),500);}this.startIdx(on?'panic':this.cur,on?.5:1.5);},
   startIdx(i,fade){if(!this.bus){this.bus=AC.createGain();this.bus.gain.value=.5;this.bus.connect(master);}
     const want=i,f=fade||1.2;
