@@ -968,7 +968,7 @@ function rollTag(){
   // 同じレア度の中は完全にランダム(持っている札も何枚でもかぶる)
   return pool[Math.floor(Math.random()*pool.length)];
 }
-function giveTag(id){const o=loadTags(),isNew=!o[id];if(isNew&&Object.keys(o).length===TAGS.length-1)setTimeout(()=>{addText({x:(L+DIV)/2,y:300,t:-.8,s:'迷子札図鑑コンプリート！',chain:'図鑑がゴージャスになったよ'});sfx.clear();},900);o[id]={c:((o[id]&&o[id].c)||0)+1,f:(o[id]&&o[id].f)||new Date().toLocaleDateString('ja-JP'),nw:isNew||(o[id]&&o[id].nw)};saveTags(o);return isNew;}
+function giveTag(id){const o=loadTags(),isNew=!o[id];if(isNew&&Object.keys(o).length===TAGS.length-1)setTimeout(()=>{addText({x:ACX,y:300,t:-.8,s:'迷子札図鑑コンプリート！',chain:'図鑑がゴージャスになったよ'});sfx.clear();},900);o[id]={c:((o[id]&&o[id].c)||0)+1,f:(o[id]&&o[id].f)||new Date().toLocaleDateString('ja-JP'),nw:isNew||(o[id]&&o[id].nw)};saveTags(o);return isNew;}
 // 玉を消した所から札がポンと出て、左上へ飛んでいく
 // 1回の連鎖(1発うつごと)で出る迷子札は1枚まで
 let chainDropped=false,chainBanner=null;
@@ -1063,8 +1063,8 @@ function update(dt){
     {if(mode==='normal')curSand=Math.max(def.sandMin,curSand*.88);sandT=mode==='normal'?curSand:def.sand;rise++;grid.forEach(b=>b.y-=RISE);sfx.rise();addText({x:158,y:floorY()-40,t:0,s:'せりあがり！',small:true});}}
   if(!busy&&(mode==='puzzle'?aboveGoal()===0&&stageT>1:(mode==='expert'&&cleared>=def.quota)||![...grid.values()].some(b=>isPic(b.kind)))){state='clearing';clearT=0;clearFx=false;if(shot&&shot.phase==='ready')shot=null;
     // 残った石・木箱・おやつはおまけでこわれる(パズルモードは残りをボーナスに)
-    let n=0;if(mode==='normal')[...grid.values()].forEach(b=>{removeBall(b);n++;});if(n){score+=n*10;$score.textContent=score;sfx.item();addText({x:(L+DIV)/2,y:FLOOR-80,t:0,s:'+'+n*10,chain:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
-    else addText({x:(L+DIV)/2,y:FLOOR-80,t:0,s:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
+    let n=0;if(mode==='normal')[...grid.values()].forEach(b=>{removeBall(b);n++;});if(n){score+=n*10;$score.textContent=score;sfx.item();addText({x:ACX,y:FLOOR-80,t:0,s:'+'+n*10,chain:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
+    else addText({x:ACX,y:FLOOR-80,t:0,s:mode==='expert'?'ノルマ達成！':mode==='puzzle'?'ゴール！':'ぜんぶ消えた！'});}
   // ピンチの判定: 一番上の玉と点線のあいだが何段ぶんあるか
   if(state==='play'&&grid.size){let top=1e9;grid.forEach(b=>{const y=cellXY(b.r,b.i).y-BR;if(y<top)top=y;});
     const rowsLeft=(top-DANGER)/ROW_H;
@@ -1307,14 +1307,14 @@ function render(){
     txt(t.s,t.x,y,(t.small?13:18)*pop);if(t.chain)txt(t.chain,t.x,y-22,15*pop,'#FF9FC0');ctx.globalAlpha=1;}
   // れんさ: 盤面の真ん中に大きく1つ。ポンと出て、ゆっくり消える
   if(chainBanner){const k=chainBanner.t,a=k<.12?k/.12:Math.min(1,(1.6-k)/.6),sc=k<.12?.5+k/.12*.7:k<.25?1.2-(k-.12)/.13*.2:1;
-    ctx.save();ctx.globalAlpha=Math.max(0,a);ctx.translate((L+DIV-DIVW)/2,DANGER+(FLOOR-DANGER)*.32-k*8);ctx.scale(sc,sc);
+    ctx.save();ctx.globalAlpha=Math.max(0,a);ctx.translate(ACX,DANGER+(FLOOR-DANGER)*.32-k*8);ctx.scale(sc,sc);
     txt(chainBanner.n+'れんさ！',0,0,Math.min(44,30+chainBanner.n*3),chainBanner.n>=4?'#FFD34D':'#FF9FC0');ctx.restore();}
-  if(state==='play'&&dangerT>0&&Math.sin(time*14)>-.4){txt('あぶない！',(L+DIV)/2,DANGER-40,16,'#FF6B6B');}
+  if(state==='play'&&dangerT>0&&Math.sin(time*14)>-.4){txt('あぶない！',ACX,DANGER-40,16,'#FF6B6B');}
   if(state==='play'&&readyT>0){ctx.save();ctx.fillStyle='rgba(10,31,41,.35)';ctx.fillRect(0,0,W,H);ctx.restore();
-    const k=1;txt('よーい…',(L+DIV)/2,452,30*k,'#FFE36E');}
-  if(state==='play'&&goT>0){ctx.globalAlpha=Math.min(1,goT*4);txt('スタート！',(L+DIV)/2,452,Math.min(44,34+(.8-goT)*40),'#FF7FA8');ctx.globalAlpha=1;}
+    const k=1;txt('よーい…',ACX,452,30*k,'#FFE36E');}
+  if(state==='play'&&goT>0){ctx.globalAlpha=Math.min(1,goT*4);txt('スタート！',ACX,452,Math.min(44,34+(.8-goT)*40),'#FF7FA8');ctx.globalAlpha=1;}
   if(state==='play'&&bannerT<1.8){ctx.globalAlpha=Math.min(1,(1.8-bannerT)*2);
-    txt(MODE_NAME[mode],(L+DIV)/2,236,12,'#FFFFFF');if(mode==='expert')txt('ノルマ：'+def.quota+'個消す',(L+DIV)/2,372,18,'#FFE36E');if(mode==='puzzle')txt('ゴールラインより下まで減らそう',(L+DIV)/2,372,13,'#FFE36E');txt('ステージ '+stageN+(mode==='normal'?' / 30':''),(L+DIV)/2,300,30);if(mode==='normal'&&stageN===30)txt('さいごのステージ！',(L+DIV)/2,404,16,'#FF9FC0');if(mode!=='puzzle'&&!classic)txt(TH.name+'のステージ',(L+DIV)/2,262,13,'#FFE9A8');txt(def.title,(L+DIV)/2,338,def.title.length>14?11:14,'#FFFFFF');ctx.globalAlpha=1;}
+    txt(MODE_NAME[mode],ACX,236,12,'#FFFFFF');if(mode==='expert')txt('ノルマ：'+def.quota+'個消す',ACX,372,18,'#FFE36E');if(mode==='puzzle')txt('ゴールラインより下まで減らそう',ACX,372,13,'#FFE36E');txt('ステージ '+stageN+(mode==='normal'?' / 30':''),ACX,300,30);if(mode==='normal'&&stageN===30)txt('さいごのステージ！',ACX,404,16,'#FF9FC0');if(mode!=='puzzle'&&!classic)txt(TH.name+'のステージ',ACX,262,13,'#FFE9A8');txt(def.title,ACX,338,def.title.length>14?11:14,'#FFFFFF');ctx.globalAlpha=1;}
 }
 
 /* ---------- 音(すべてその場で合成。音声ファイルなし) ---------- */
