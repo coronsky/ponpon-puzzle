@@ -175,6 +175,16 @@ button.mode b em{font-style:normal;font-family:var(--f-body);font-weight:800;fon
 .clear-sub{margin:0!important;font-size:12px!important;letter-spacing:.15em}
 .clear-tag{display:flex;align-items:center;gap:10px;justify-content:center;font-size:13px;font-weight:800}
 .clear-tag img{width:56px;height:56px;object-fit:contain}
+.zk-backup{display:flex;flex-direction:column;gap:8px;border-top:1px dashed rgba(255,255,255,.18);padding-top:10px;text-align:left}
+.zk-backup h3{margin:0;font-size:14px;color:var(--rail)}
+.zk-backup p{margin:0!important;font-size:12px!important;line-height:1.6}
+.zk-backup .row2{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.zk-backup .row2 button{font-size:12.5px;padding:7px 12px}
+.zk-backup textarea{width:100%;box-sizing:border-box;font:12px/1.4 ui-monospace,Menlo,monospace;word-break:break-all;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(0,0,0,.25);color:var(--ink);padding:8px;resize:vertical;user-select:text;-webkit-user-select:text}
+.bk-in{display:flex;flex-direction:column;gap:8px;align-items:center}
+.bk-in button{font-size:13px;padding:8px 18px}
+.bk-msg{font-weight:800;color:#7FE0A8}
+.bk-msg.err{color:#FF8A8A}
 .zk-reset{display:flex;flex-direction:column;gap:8px;align-items:center;border-top:1px dashed rgba(255,255,255,.18);padding-top:10px}
 #zkResetBtn{font-size:12px;padding:6px 14px}
 .zk-reset-box{display:flex;flex-direction:column;gap:8px;background:rgba(255,90,90,.12);border:1.5px solid #FF6B6B;border-radius:12px;padding:10px;width:100%}
@@ -276,6 +286,14 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
       <div class="zk-grid" id="zkGrid"></div>
       <div class="zk-detail" id="zkDetail" hidden><img id="zkImg" alt=""><div><b id="zkName"></b><span id="zkRare" class="zk-pill"></span><p id="zkDesc"></p><p id="zkMeta" class="zk-meta"></p></div></div>
       <p class="zk-hint">2連鎖以上や、5個以上いっぺんに消すと、ときどき迷子札が出てくるよ。レア・超レアは、ノーマルを全部集めたあたりから出はじめる…かも！</p>
+      <div class="zk-backup">
+        <h3>データの引きつぎ</h3>
+        <p>機種変更やブラウザを変えるときのために、「引きつぎコード」をメモ帳やLINEの自分あてなどに保存しておいてね。迷子札・ベストスコア・パズルのコースが戻せます。</p>
+        <div class="row2"><button id="bkMake" class="sub" type="button">引きつぎコードをコピー</button><button id="bkOpen" class="sub" type="button">コードを入れて戻す</button></div>
+        <textarea id="bkOut" readonly rows="3" aria-label="引きつぎコード" hidden></textarea>
+        <div id="bkIn" class="bk-in" hidden><textarea id="bkText" rows="3" placeholder="ここに引きつぎコードをはりつけ" aria-label="引きつぎコードを入れる"></textarea><button id="bkLoad" type="button">このコードで戻す</button></div>
+        <p id="bkMsg" class="bk-msg" hidden></p>
+      </div>
       <button id="zukanClose" class="sub small-close" type="button">とじる</button>
       <div class="zk-reset">
         <button id="zkResetBtn" class="sub" type="button">図鑑をリセット</button>
@@ -1575,7 +1593,7 @@ function showTagDetail(i){
   document.getElementById('zkDetail').hidden=false;
   if(own&&own.nw){own.nw=false;saveTags(o);renderZukan(i);document.getElementById('zkDetail').hidden=false;}
 }
-const openZukan=from=>{zukanFrom=from;closeReset();document.getElementById('zkResetDone').hidden=true;if(from)document.getElementById(from).hidden=true;renderZukan();document.getElementById('zukanOv').hidden=false;document.querySelector('#zukanOv .card').scrollTop=0;};
+const openZukan=from=>{zukanFrom=from;closeReset();closeBackup();document.getElementById('zkResetDone').hidden=true;if(from)document.getElementById(from).hidden=true;renderZukan();document.getElementById('zukanOv').hidden=false;document.querySelector('#zukanOv .card').scrollTop=0;};
 document.getElementById('zukanBtn').onclick=()=>openZukan('startOv');
 document.getElementById('endZukan').onclick=()=>openZukan('endOv');
 document.getElementById('endTitle').onclick=()=>{hide('endOv');confRun=false;state='title';shot=null;ghost=null;showNormalDone();document.getElementById('startOv').hidden=false;};
@@ -1588,6 +1606,52 @@ const RESET_STEPS=['集めた迷子札をぜんぶリセットしますか？ (1
 let resetStep=0;
 function showResetStep(){document.getElementById('zkResetMsg').textContent=RESET_STEPS[resetStep];
   document.getElementById('zkResetYes').textContent=resetStep<2?'つぎへ':'リセットする';document.getElementById('zkResetBox').hidden=false;document.getElementById('zkResetBtn').hidden=true;}
+/* ---------- 引きつぎコード(迷子札・ベスト・コース解放・標準クリア) ---------- */
+const BK_HEAD='PONPON1-';
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+function makeBackup(){
+  const d={v:1,tags:loadTags(),best:{},tier:+lsGet('mcPonPonPuzzleTier')||0,nclear:lsGet('mcPonPonNormalClear')==='1'};
+  ['normal','expert','puzzle'].forEach(m=>{d.best[m]=+lsGet('mcPonPonBest_'+m)||0;});
+  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(d)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  return BK_HEAD+b64;
+}
+function readBackup(code){
+  code=String(code||'').replace(/\s+/g,'');const i=code.indexOf(BK_HEAD);if(i<0)return null;
+  try{let b=code.slice(i+BK_HEAD.length).replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';
+    const d=JSON.parse(decodeURIComponent(escape(atob(b))));return d&&d.v===1&&typeof d.tags==='object'?d:null;}catch(e){return null}
+}
+// 今のデータは消さずに、コードの中身とあわせる(多いほう・進んでいるほうを残す)
+function applyBackup(d){
+  const o=loadTags();let added=0;
+  Object.entries(d.tags||{}).forEach(([id,t])=>{if(!TAGS[id]||!t)return;const cur=o[id];
+    if(!cur){o[id]={c:Math.max(1,+t.c||1),f:t.f||new Date().toLocaleDateString('ja-JP'),nw:false};added++;}
+    else cur.c=Math.max(+cur.c||1,+t.c||1);});
+  lsSet('mcPonPonTags2',JSON.stringify(o));
+  ['normal','expert','puzzle'].forEach(m=>{const v=+((d.best||{})[m])||0;if(v>(+lsGet('mcPonPonBest_'+m)||0))lsSet('mcPonPonBest_'+m,v);});
+  if((+d.tier||0)>(+lsGet('mcPonPonPuzzleTier')||0))lsSet('mcPonPonPuzzleTier',Math.min(5,+d.tier));
+  if(d.nclear)lsSet('mcPonPonNormalClear','1');
+  return {added,total:Object.keys(o).length};
+}
+function bkMsg(t,err){const m=document.getElementById('bkMsg');m.textContent=t;m.classList.toggle('err',!!err);m.hidden=false;}
+function closeBackup(){['bkOut','bkIn','bkMsg'].forEach(id=>document.getElementById(id).hidden=true);document.getElementById('bkText').value='';}
+document.getElementById('bkMake').onclick=()=>{
+  const code=makeBackup(),out=document.getElementById('bkOut');out.value=code;out.hidden=false;document.getElementById('bkIn').hidden=true;
+  const n=Object.keys(loadTags()).length;
+  const done=()=>bkMsg('コピーしました(迷子札 '+n+'種類)。メモ帳などに貼って保存してね');
+  const fall=()=>{out.focus();out.select();try{if(document.execCommand('copy')){done();return;}}catch(e){}bkMsg('コードを長押しして全部コピーしてね');};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code).then(done,fall);else fall();
+};
+document.getElementById('bkOpen').onclick=()=>{document.getElementById('bkOut').hidden=true;document.getElementById('bkMsg').hidden=true;document.getElementById('bkIn').hidden=false;document.getElementById('bkText').focus();};
+document.getElementById('bkLoad').onclick=()=>{
+  const d=readBackup(document.getElementById('bkText').value);
+  if(!d){bkMsg('コードが読めませんでした。最初から最後まで全部はりつけてね',true);return;}
+  const r=applyBackup(d);renderZukan();showNormalDone();
+  document.getElementById('bkIn').hidden=true;document.getElementById('bkText').value='';
+  bkMsg('戻しました！ 迷子札が'+r.added+'種類ふえて、いま '+r.total+'種類です');
+};
+// ブラウザに「このサイトのデータは消さないで」とお願いする(聞いてくれるかはブラウザしだい)
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});}catch(e){}
 function closeReset(){resetStep=0;document.getElementById('zkResetBox').hidden=true;document.getElementById('zkResetBtn').hidden=false;}
 document.getElementById('zkResetBtn').onclick=()=>{resetStep=0;document.getElementById('zkResetDone').hidden=true;showResetStep();};
 document.getElementById('zkResetNo').onclick=closeReset;
