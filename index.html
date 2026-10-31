@@ -1247,9 +1247,10 @@ function render(){
   ctx.save();ctx.beginPath();ctx.rect(DIV+DIVW,DIV_TOP,R-DIV-DIVW,FLOOR-DIV_TOP);ctx.clip();
   ctx.fillStyle='rgba(0,0,0,.18)';ctx.fillRect(DIV+DIVW,DIV_TOP,R-DIV-DIVW,FLOOR-DIV_TOP);
   ctx.restore();
-  // 下の帯: 砂時計とパワー
-  const band=ctx.createLinearGradient(0,FLOOR,0,H);band.addColorStop(0,'rgba(10,31,41,0)');band.addColorStop(.35,'rgba(10,31,41,.75)');band.addColorStop(1,'rgba(10,31,41,.9)');
-  ctx.fillStyle=band;ctx.fillRect(0,FLOOR,W,H-FLOOR);
+  if(classic){drawClassicTable(true);drawClassicPlunger(top);}else{if(TH.frImg.complete){const y0=FR_TY(0),y1=FR_TY(H);ctx.drawImage(TH.frImg,180-180*FR_SX,y0,W*FR_SX,y1-y0);}drawPlunger(top);}
+  // 下の帯: 砂時計とパワー(フレームの上に重ねて見えるように)
+  const BY=Math.max(FLOOR,612),band=ctx.createLinearGradient(0,BY,0,H);band.addColorStop(0,'rgba(10,31,41,0)');band.addColorStop(.35,'rgba(10,31,41,.75)');band.addColorStop(1,'rgba(10,31,41,.9)');
+  ctx.fillStyle=band;ctx.fillRect(0,BY,W,H-BY);
   const sf=state==='title'?1:mode==='puzzle'?1-riseOff/ROW_H:Math.max(0,sandT/(mode==='normal'?curSand:def.sand));
   if(mode!=='puzzle'||state==='title'){ // 砂時計(パズルモードは出さない)
   ctx.save();ctx.translate(22,627);ctx.fillStyle='#E9B44C';
@@ -1262,7 +1263,6 @@ function render(){
   ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(170,622,128,10);
   const pw=ready?pull/MAXPULL:0;
   ctx.fillStyle=pw>.8?'#FF7FA8':'#E9B44C';ctx.fillRect(170,622,128*pw,10);
-  if(classic){drawClassicTable(true);drawClassicPlunger(top);}else{if(TH.frImg.complete)ctx.drawImage(TH.frImg,0,0,W,H);drawPlunger(top);}
   // ガイド線
   if(ghost){ctx.fillStyle=ghost.fail?'rgba(255,90,90,.7)':'rgba(255,247,232,.75)';
     ghost.pts.forEach((p,i)=>{if(i%2===0){ctx.beginPath();ctx.arc(p[0],p[1],1.8,0,7);ctx.fill();}});
@@ -1514,6 +1514,7 @@ document.addEventListener('visibilitychange',()=>{if(!AC)return;if(document.hidd
 ['pointerdown','touchend','keydown'].forEach(ev=>document.addEventListener(ev,()=>{if(AC&&soundOn&&(AC.state!=='running'))fixAudio(false);},{passive:true}));
 
 /* ---------- テーマ切りかえ ---------- */
+const FR_SX=1.1,FR_SY=1.04,FR_FLOOR=605;let FR_TY=y=>y;
 function applyTheme(i){
   if(i===themeIdx)return;themeIdx=i;TH=THEMES[i];
   if(classic){
@@ -1521,7 +1522,9 @@ function applyTheme(i){
     L=8;R=352;DIV=303.5;DIVW=6.0;DIV_TOP=174;FLOOR=604;SPRING=165;ACX=(L+R)/2;
     {const rx=(R-L)/2,ry=150;ARCH=[];for(let k=0;k<=48;k++){const a=Math.PI+Math.PI*k/48;ARCH.push([ACX+Math.cos(a)*rx,SPRING+Math.sin(a)*ry]);}}
   }else{
-  L=30;R=330;DIV=281.0;DIVW=7.0;DIV_TOP=212;FLOOR=580;SPRING=200;ARCH=TH.arch;ACX=(L+R)/2;
+  // 通常版: フレーム画像を横に1割・縦に4%外へ広げて内がわを広く(玉が大きくなる。横7個・13段はそのまま)
+  const fy=(FR_FLOOR-580*FR_SY)/(1-FR_SY),tx=x=>180+(x-180)*FR_SX,ty=y=>fy+(y-fy)*FR_SY;FR_TY=ty;
+  L=tx(30);R=tx(330);DIV=tx(281);DIVW=7.0*FR_SX;DIV_TOP=ty(212);FLOOR=ty(580);SPRING=ty(200);ARCH=TH.arch.map(p=>[tx(p[0]),ty(p[1])]);ACX=(L+R)/2;
   }
   BR=Math.floor((((DIV-DIVW)-L)/(2*COLS+1)-.3)*10)/10;ROW_H=BR*Math.sqrt(3);RISE=ROW_H;
   LANE_X=classic?((DIV+2.5)+R)/2:(DIV+DIVW+R)/2;DANGER=Math.max(DIV_TOP,SPRING)+BR*.6;
