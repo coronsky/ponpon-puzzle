@@ -182,6 +182,10 @@ button.mode b em{font-style:normal;font-family:var(--f-body);font-weight:800;fon
 .zk-backup .row2 button{font-size:12.5px;padding:7px 12px}
 .zk-backup textarea{width:100%;box-sizing:border-box;font:12px/1.4 ui-monospace,Menlo,monospace;word-break:break-all;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(0,0,0,.25);color:var(--ink);padding:8px;resize:vertical;user-select:text;-webkit-user-select:text}
 .bk-code{width:100%;box-sizing:border-box;text-align:center;font:800 26px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;border-radius:10px;border:1.5px solid rgba(255,255,255,.35);background:rgba(0,0,0,.25);color:var(--ink);padding:8px;user-select:text;-webkit-user-select:text}
+.bk-tap{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;border-style:dashed;border-color:var(--rail)}
+.bk-tap small{font:700 11px/1.2 var(--f-body);letter-spacing:0;color:var(--rail)}
+.bk-tap:active{transform:scale(.97)}
+.bk-tap.copied{border-color:#7FE0A8;border-style:solid}
 .bk-in{display:flex;flex-direction:column;gap:8px;align-items:center}
 .bk-in button{font-size:13px;padding:8px 18px}
 .bk-msg{font-weight:800;color:#7FE0A8}
@@ -291,7 +295,7 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
         <h3>データの引きつぎ</h3>
         <p>機種変更やブラウザを変えるときのために、「引きつぎコード」をメモ帳やLINEの自分あてなどに保存しておいてね。迷子札とパズルのコースが戻せます(ベストスコアは入りません)。</p>
         <div class="row2"><button id="bkMake" class="sub" type="button">引きつぎコードをコピー</button><button id="bkOpen" class="sub" type="button">コードを入れて戻す</button></div>
-        <input id="bkOut" class="bk-code" readonly aria-label="引きつぎコード" hidden>
+        <button id="bkOut" class="bk-code bk-tap" type="button" aria-label="引きつぎコード。タップでコピー" hidden><span id="bkOutTxt"></span><small>タップでコピー</small></button>
         <div id="bkIn" class="bk-in" hidden><input id="bkText" class="bk-code" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例: Ab3dE" aria-label="引きつぎコードを入れる"><button id="bkLoad" type="button">このコードで戻す</button></div>
         <p id="bkMsg" class="bk-msg" hidden></p>
       </div>
@@ -1679,12 +1683,20 @@ function applyBackup(d){
 function bkMsg(t,err){const m=document.getElementById('bkMsg');m.textContent=t;m.classList.toggle('err',!!err);m.hidden=false;}
 function closeBackup(){['bkOut','bkIn','bkMsg'].forEach(id=>document.getElementById(id).hidden=true);document.getElementById('bkText').value='';}
 document.getElementById('bkMake').onclick=()=>{
-  const code=make5(),out=document.getElementById('bkOut');out.value=code;out.hidden=false;document.getElementById('bkIn').hidden=true;
-  const n=Object.keys(loadTags()).length;
-  const done=()=>bkMsg('コピーしました(迷子札 '+n+'種類)。メモ帳などに貼って保存してね');
-  const fall=()=>{out.focus();out.select();try{if(document.execCommand('copy')){done();return;}}catch(e){}bkMsg('コードを長押しして全部コピーしてね');};
-  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code).then(done,fall);else fall();
+  const code=make5(),out=document.getElementById('bkOut');out.dataset.code=code;document.getElementById('bkOutTxt').textContent=code;out.hidden=false;document.getElementById('bkIn').hidden=true;
+  copyCode(code);
 };
+// コードをコピー(ボタンでもコードのタップでも)。だめなときは昔ながらの方法でコピー
+function copyCode(code){
+  const out=document.getElementById('bkOut'),n=Object.keys(loadTags()).length;
+  const done=()=>{bkMsg('コピーしました(迷子札 '+n+'種類)。メモ帳などに貼って保存してね');out.classList.add('copied');out.querySelector('small').textContent='コピーしました！';
+    clearTimeout(copyCode.t);copyCode.t=setTimeout(()=>{out.classList.remove('copied');out.querySelector('small').textContent='タップでコピー';},1800);};
+  const fall=()=>{const ta=document.createElement('textarea');ta.value=code;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;opacity:0;font-size:16px';
+    document.body.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,code.length);let ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();
+    if(ok)done();else bkMsg('コピーできませんでした。コード「'+code+'」を書きうつしてね',true);};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code).then(done,fall);else fall();
+}
+document.getElementById('bkOut').onclick=e=>{const c=e.currentTarget.dataset.code;if(c)copyCode(c);};
 document.getElementById('bkOpen').onclick=()=>{document.getElementById('bkOut').hidden=true;document.getElementById('bkMsg').hidden=true;document.getElementById('bkIn').hidden=false;document.getElementById('bkText').focus();};
 document.getElementById('bkLoad').onclick=()=>{
   const d=readBackup(document.getElementById('bkText').value);
