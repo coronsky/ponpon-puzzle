@@ -347,7 +347,7 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
         <dl>
           <dt>標準モード</dt><dd>全30面。置いてある絵の玉をぜんぶ消したらクリア。2面ごとにレベルが上がり、30面クリアでエンディングがあります。</dd>
           <dt>エキスパートモード</dt><dd>最初から玉とおじゃまがたくさん。ノルマの数だけ消したらクリア。床が速くせり上がり、アイテムは出ません。玉の並びは毎回変わります。</dd>
-          <dt>パズルモード</dt><dd>下から玉がじわじわせり上がってきます。黄色いゴールラインより上の玉をなくしたらクリア。森・春・海・秋・冬の5コース(各5面)があり、クリアすると次のコースが選べます。最後のコースのあとに、ひみつのコースがあります。</dd>
+          <dt>パズルモード</dt><dd>下から玉がじわじわせり上がってきます。黄色いゴールラインより上の玉をなくしたらクリア。れんさをすると、せり上がりがしばらく止まります(2れんさ3秒・3れんさ5秒・4れんさ7秒・5れんさ以上9秒)。止まっている時間は右上のタイマーで見られます。森・春・海・秋・冬の5コース(各5面)があり、クリアすると次のコースが選べます。最後のコースのあとに、ひみつのコースがあります。</dd>
         </dl>
       </section>
 
@@ -559,7 +559,7 @@ function say(text){
   if(!soundOn||!text)return;
   try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='ja-JP';if(jaVoice)u.voice=jaVoice;u.rate=1.08;u.pitch=1.45;u.volume=1;speechSynthesis.speak(u);}catch(e){}
 }
-let curSand=20,readyT=0,goT=0,panicT=0,mode='normal',par=0,cleared=0,riseOff=0,risePause=0,incoming=null,menuPrev=null;
+let curSand=20,readyT=0,goT=0,panicT=0,mode='normal',par=0,cleared=0,riseOff=0,risePause=0,risePauseMax=0,incoming=null,menuPrev=null;
 let grid=new Map(),popping=[],shot=null,nextKind=0,score=0,stageStartScore=0,best=0,state='title',stageN=1,def=stageDef(1);
 let pull=0,dragging=false,startY=0,plungerKick=0,combo=0,time=0,dangerT=0,texts=[],keyCharge=false;
 let rise=0,sandT=0,stageT=0,bannerT=0,clearT=0,guideMode=null,ghost=null,ghostPull=-1,settleT=0,settling=false;
@@ -923,7 +923,7 @@ function useItem(c,s){
 }
 function removeBall(b){if(!grid.has(key(b.r,b.i)))return;if(isPic(b.kind))cleared++;grid.delete(key(b.r,b.i));b.pop=.001;popping.push(b);}
 function hitCrate(b){b.hp--;sfx.thud();if(b.hp<=0){removeBall(b);addText({x:b.x,y:b.y-10,t:0,s:'バキッ！',small:true});score+=20;$score.textContent=score;}else addText({x:b.x,y:b.y-10,t:0,s:'ゴン',small:true});}
-function eatTreat(b){removeBall(b);if(mode==='puzzle')risePause=6;else sandT=mode==='normal'?curSand:def.sand;score+=50;$score.textContent=score;sfx.treat();addText({x:b.x,y:b.y,t:0,s:'+50',chain:mode==='puzzle'?'おやつ！せり上がりストップ':'おやつ！砂時計もどる'});}
+function eatTreat(b){removeBall(b);if(mode==='puzzle')stopRise(6,'おやつ');else sandT=mode==='normal'?curSand:def.sand;score+=50;$score.textContent=score;sfx.treat();addText({x:b.x,y:b.y,t:0,s:'+50',chain:mode==='puzzle'?'おやつ！せり上がりストップ':'おやつ！砂時計もどる'});}
 // ボム: 落ちた所のまわり2マスくらいを全部こわす(石・木箱も)
 function useBomb(c,s){
   const p=cellXY(c[0],c[1]);let n=0;
@@ -972,6 +972,10 @@ function giveTag(id){const o=loadTags(),isNew=!o[id];if(isNew&&Object.keys(o).le
 // 玉を消した所から札がポンと出て、左上へ飛んでいく
 // 1回の連鎖(1発うつごと)で出る迷子札は1枚まで
 let chainDropped=false,chainBanner=null;
+// パズルモード: れんさで、せり上がりが止まる秒数(2れんさ3秒・3れんさ5秒・4れんさ7秒・5れんさ以上9秒)
+const STOP_SEC=[0,0,3,5,7,9];
+function stopRise(sec,why){if(sec<=risePause)return;risePause=sec;risePauseMax=sec;
+  addText({x:ACX,y:goalY()-24,t:0,s:'せり上がりストップ '+sec+'秒',small:true});}
 function maybeDrop(x,y,chance){
   if(chainDropped||chance<=0||Math.random()>=chance)return;
   chainDropped=true;
@@ -1005,6 +1009,7 @@ function findGroups(){
   });
   addText({x:sx/sn,y:sy/sn,t:0,s:'+'+stepPts});
   if(combo>1)chainBanner={n:combo,t:0};
+  if(mode==='puzzle'&&combo>1)stopRise(STOP_SEC[Math.min(combo,STOP_SEC.length-1)],'れんさ');
   settling=true;
 }
 
@@ -1054,7 +1059,7 @@ function update(dt){
   // パズル: 全体がじわじわ上がり、1段ぶん上がったら下の段が入る
   if(mode==='puzzle'){
     if(!incoming)incoming=makeIncoming();
-    if(risePause>0)risePause-=dt;else riseOff=Math.min(ROW_H,riseOff+ROW_H/def.push*dt);
+    if(risePause>0)risePause=Math.max(0,risePause-dt);else riseOff=Math.min(ROW_H,riseOff+ROW_H/def.push*dt);
     if(riseOff>=ROW_H&&!busy)pushRow();
   }
   // 砂時計 → 床がせり上がる(標準・エキスパート)
@@ -1289,7 +1294,10 @@ function render(){
       ctx.strokeStyle='rgba(40,20,0,.75)';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(L,gy);ctx.lineTo(DIV-DIVW,gy);ctx.stroke();
       ctx.strokeStyle='#FFD34D';ctx.lineWidth=3.5;ctx.setLineDash([12,6]);ctx.lineDashOffset=-time*12;
       ctx.beginPath();ctx.moveTo(L,gy);ctx.lineTo(DIV-DIVW,gy);ctx.stroke();ctx.restore();txt('ゴール',DIV-DIVW-26,gy-10,11,'#FFD34D');
-      txt('ゴールより上 '+aboveGoal(),L+14,DANGER-16,12,'#FFE36E','left');}
+      txt('ゴールより上 '+aboveGoal(),L+14,DANGER-16,12,'#FFE36E','left');
+      if(risePause>0&&state==='play'){const bw=70,bx=DIV-DIVW-8-bw,by=DANGER-9,fr=risePauseMax?risePause/risePauseMax:0,blink=risePause<1.5&&Math.sin(time*14)<0;
+        txt('ストップ '+risePause.toFixed(1)+'秒',DIV-DIVW-8,DANGER-20,12,blink?'#FF8A8A':'#7FE0FF','right');
+        ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(bx,by,bw,5);ctx.fillStyle=blink?'#FF8A8A':'#7FE0FF';ctx.fillRect(bx,by,bw*fr,5);}}
     else if(mode==='expert')txt('ノルマ あと '+Math.max(0,def.quota-cleared)+'個',L+14,DANGER-16,12,'#FFE36E','left');
     else{let left=0;grid.forEach(b=>{if(isPic(b.kind))left++;});txt('のこり '+left,L+14,DANGER-16,12,'#FFE36E','left');}}
   if(state==='play'&&ready&&!dragging&&!keyCharge&&Math.sin(time*5)>-.3)txt('↓ 引っぱる',Math.min(LANE_X,W-36),REST_Y-BR-12,11);
