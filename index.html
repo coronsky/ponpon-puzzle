@@ -814,7 +814,7 @@ function fillGrid(g,targets){
 }
 function loadStage(n){
   readyT=9;goT=0;{let tries=0;const go=()=>{const ok=VCLIPS.start.every(k=>vbuf[k]&&vbuf[k]!=='loading')||VCLIPS.start.some(k=>vbuf[k]===null);if(!ok&&tries++<15){setTimeout(go,100);return;}sfx.ready();const c=voice('start',mode==='normal'&&n===30?VOICE.last:pick(VOICE.start));readyT=c?Math.max(.6,GO_AT[c]||1):1.6;};setTimeout(go,150);}bgm.next();stageN=n;par=0;cleared=0;riseOff=0;risePause=0;incoming=null;def=stageDef(n);$stageNo.textContent=n;applyTheme(def.theme!=null?def.theme:def.lv%THEMES.length);
-  popping=[];texts=[];chainBanner=null;combo=0;dangerT=0;pull=0;dragging=false;rise=0;curSand=def.sand;sandT=mode==='puzzle'?def.push:def.sand;stageT=0;bannerT=0;clearT=0;ghost=null;ghostPull=-1;settling=false;
+  popping=[];texts=[];chainBanner=null;stopPop=null;chainBase=0;combo=0;dangerT=0;pull=0;dragging=false;rise=0;curSand=def.sand;sandT=mode==='puzzle'?def.push:def.sand;stageT=0;bannerT=0;clearT=0;ghost=null;ghostPull=-1;settling=false;
   fillGrid(makeGrid(def,mode==='expert'?Math.floor(Math.random()*1e9):n*7919+13),true);/* 標準・パズルはステージごとに固定、エキスパートは毎回ランダム */
   stageStartScore=score;updateGuideBtn();shots=0;lastItemShot=0;
   shot=null;nextKind=pickKind();spawnReady();state='play';
@@ -974,8 +974,13 @@ function giveTag(id){const o=loadTags(),isNew=!o[id];if(isNew&&Object.keys(o).le
 let chainDropped=false,chainBanner=null;
 // パズルモード: れんさで、せり上がりが止まる秒数(2れんさ3秒・3れんさ5秒・4れんさ7秒・5れんさ以上9秒)
 const STOP_SEC=[0,0,3,5,7,9];
-function stopRise(sec,why){if(sec<=risePause)return;risePause=sec;risePauseMax=sec;
-  addText({x:ACX,y:goalY()-24,t:0,s:'せり上がりストップ '+sec+'秒',small:true});}
+// せり上がりストップ: 止まっている間にまたれんさ・おやつが来たら、残り時間に足し算(最大30秒)
+// 1回のれんさの中(2れんさ→3れんさ…)は、そのれんさの数の秒数になるまで増やす
+const STOP_MAX=30;let chainBase=0,stopPop=null;
+function addStop(total){total=Math.min(STOP_MAX,total);const was=risePause,add=total-was;if(add<=0.05)return;
+  risePause=total;risePauseMax=was>0?Math.max(risePauseMax,total):total;
+  stopPop={s:'+'+(Math.round(add*10)/10)+'秒',t:0};}
+function stopRise(sec,why){addStop(risePause+sec);}
 function maybeDrop(x,y,chance){
   if(chainDropped||chance<=0||Math.random()>=chance)return;
   chainDropped=true;
@@ -1009,13 +1014,14 @@ function findGroups(){
   });
   addText({x:sx/sn,y:sy/sn,t:0,s:'+'+stepPts});
   if(combo>1)chainBanner={n:combo,t:0};
-  if(mode==='puzzle'&&combo>1)stopRise(STOP_SEC[Math.min(combo,STOP_SEC.length-1)],'れんさ');
+  if(mode==='puzzle'&&combo>1){if(combo===2)chainBase=risePause;addStop(chainBase+STOP_SEC[Math.min(combo,STOP_SEC.length-1)]);}
   settling=true;
 }
 
 /* ---------- 進行 ---------- */
 function update(dt){
   time+=dt;shakeT=Math.max(0,shakeT-dt);grid.forEach(b=>{if(b.flash)b.flash=Math.max(0,b.flash-dt);});
+  if(stopPop){stopPop.t+=dt;if(stopPop.t>1.3)stopPop=null;}
   if(chainBanner){chainBanner.t+=dt;if(chainBanner.t>1.6)chainBanner=null;}
   texts.forEach(t=>t.t+=dt);texts=texts.filter(t=>t.t<textLife(t));
   shards.forEach(p=>{p.t+=dt;p.vy+=900*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=dt*8;});shards=shards.filter(p=>p.t<.7);if(shot&&shot.appear!=null){shot.appear+=dt;if(shot.appear>.5)shot.appear=null;}
@@ -1295,9 +1301,7 @@ function render(){
       ctx.strokeStyle='#FFD34D';ctx.lineWidth=3.5;ctx.setLineDash([12,6]);ctx.lineDashOffset=-time*12;
       ctx.beginPath();ctx.moveTo(L,gy);ctx.lineTo(DIV-DIVW,gy);ctx.stroke();ctx.restore();txt('ゴール',DIV-DIVW-26,gy-10,11,'#FFD34D');
       txt('ゴールより上 '+aboveGoal(),L+14,DANGER-16,12,'#FFE36E','left');
-      if(risePause>0&&state==='play'){const bw=70,bx=DIV-DIVW-8-bw,by=DANGER-9,fr=risePauseMax?risePause/risePauseMax:0,blink=risePause<1.5&&Math.sin(time*14)<0;
-        txt('ストップ '+risePause.toFixed(1)+'秒',DIV-DIVW-8,DANGER-20,12,blink?'#FF8A8A':'#7FE0FF','right');
-        ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(bx,by,bw,5);ctx.fillStyle=blink?'#FF8A8A':'#7FE0FF';ctx.fillRect(bx,by,bw*fr,5);}}
+      }
     else if(mode==='expert')txt('ノルマ あと '+Math.max(0,def.quota-cleared)+'個',L+14,DANGER-16,12,'#FFE36E','left');
     else{let left=0;grid.forEach(b=>{if(isPic(b.kind))left++;});txt('のこり '+left,L+14,DANGER-16,12,'#FFE36E','left');}}
   if(state==='play'&&ready&&!dragging&&!keyCharge&&Math.sin(time*5)>-.3)txt('↓ 引っぱる',Math.min(LANE_X,W-36),REST_Y-BR-12,11);
@@ -1315,6 +1319,14 @@ function render(){
     // 出るときはポンと大きく、消えるときはゆっくりうすく
     const a=k<.15?k/.15:Math.min(1,(life-k)/.7);ctx.globalAlpha=Math.max(0,a);const y=t.y-k*(t.small?30:14),pop=k<.15?.8+k/.15*.2:1;
     txt(t.s,t.x,y,(t.small?13:18)*pop);if(t.chain)txt(t.chain,t.x,y-22,15*pop,'#FF9FC0');ctx.globalAlpha=1;}
+  if(mode==='puzzle'&&risePause>0&&state==='play'){
+    const cy=DANGER+62,pw=176,ph=70,px=ACX-pw/2,py=cy-ph/2,fr=risePauseMax?risePause/risePauseMax:0,blink=risePause<1.5&&Math.sin(time*14)<0,col=blink?'#FF8A8A':'#7FE0FF';
+    ctx.save();ctx.beginPath();const rr=16;ctx.moveTo(px+rr,py);ctx.arcTo(px+pw,py,px+pw,py+ph,rr);ctx.arcTo(px+pw,py+ph,px,py+ph,rr);ctx.arcTo(px,py+ph,px,py,rr);ctx.arcTo(px,py,px+pw,py,rr);ctx.closePath();
+    ctx.fillStyle='rgba(8,24,34,.62)';ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle=col;ctx.stroke();ctx.restore();
+    txt('せり上がりストップ',ACX,cy-20,13,'#E8F8FF');
+    txt(risePause.toFixed(1)+'秒',ACX,cy+6,30,col);
+    ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(ACX-70,cy+25,140,6);ctx.fillStyle=col;ctx.fillRect(ACX-70,cy+25,140*fr,6);
+    if(stopPop){const k=stopPop.t;ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,(1.3-k)/.5));txt(stopPop.s,ACX+pw/2-6,py-8-k*14,20,'#FFE36E');ctx.restore();}}
   // れんさ: 盤面の真ん中に大きく1つ。ポンと出て、ゆっくり消える
   if(chainBanner){const k=chainBanner.t,a=k<.12?k/.12:Math.min(1,(1.6-k)/.6),sc=k<.12?.5+k/.12*.7:k<.25?1.2-(k-.12)/.13*.2:1;
     ctx.save();ctx.globalAlpha=Math.max(0,a);ctx.translate(ACX,DANGER+(FLOOR-DANGER)*.32-k*8);ctx.scale(sc,sc);
